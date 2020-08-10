@@ -2,6 +2,8 @@
 
 IFS=''
 GPUINFO="$(env AMD_DEBUG=info glxinfo -B)"
+shopt -s expand_aliases
+alias echo="echo -e"
 
 # echo ${GPUINFO}
 
@@ -50,11 +52,11 @@ case ${VRAM_TYPE} in
       ;;
 esac
 
-echo "GPU ASIC: ${GPU_ASIC}"
+echo "GPU ASIC:\t\t${GPU_ASIC}"
 
 NUM_CU="$(( ${MAX_SHADER_ENGINE} * ${SHADER_ARRAY_PER_SE} * ${CU_PER_SH} ))"
-echo "Compute Units: ${NUM_CU}"
-echo "Peak GFX Clock: ${MAX_SHADER_CLOCK} MHz"
+echo "Compute Units:\t\t${NUM_CU} CU"
+echo "Peak GFX Clock:\t\t${MAX_SHADER_CLOCK} MHz"
 
 #  MAX_SHADER_CLOCK="1275"
 #  GPU_FAMILY="100"
@@ -62,17 +64,17 @@ echo "Peak GFX Clock: ${MAX_SHADER_CLOCK} MHz"
 echo
 
 if [ ${GPU_FAMILY} -lt 77 ];then
-   echo "Peak FP16: $(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000" | bc ) TFlops"
+   echo "Peak FP16:\t$(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000" | bc ) TFlops"
 else 
-   echo "Peak FP16: $(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000 * 2" | bc ) TFlops"
+   echo "Peak FP16:\t$(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000 * 2" | bc ) TFlops"
 fi
 
-echo "Peak FP32: $(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000" | bc ) TFlops"
-echo "Peak Pixel Fill-Rate: $(echo "scale=2;${NUM_RB} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc ) GP/s"
-echo "Peak Texture Fill-Rate: $(echo "scale=2;${NUM_CU} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc) GT/s"
+echo "Peak FP32:\t$(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000" | bc ) TFlops"
+echo "Peak Pixel Fill-Rate:\t$(echo "scale=2;${NUM_RB} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc ) GP/s"
+echo "Peak Texture Fill-Rate:\t$(echo "scale=2;${NUM_CU} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc) GT/s"
 
 echo
-printf "VRAM Type: "
+printf "VRAM Type:\t\t"
 case ${VRAM_TYPE} in
    1)
       printf "GDDR1"
@@ -104,8 +106,9 @@ case ${VRAM_TYPE} in
 esac
 printf "\n"
 
+echo "VRAM Bit Width:\t\t${VRAM_BIT_WIDTH}-bit"
 VRAM_MBW="$(echo " ${VRAM_BIT_WIDTH} / 8 * ${DATA_RATE} / 1000" | bc)"
-echo "Peak VRAM Bandwidth: ${VRAM_MBW} GB/s"
+echo "Peak VRAM Bandwidth:\t${VRAM_MBW} GB/s"
 
 echo
 
@@ -129,11 +132,9 @@ do
          do
             printf " \u2502 \u2502  "
 #            printf ' '"%.s" {1..13}
-            printf '\u2504\u2504'"%.s" {1..6}
+            printf '\u2550'"%.s" {1..12}
             printf " CU(${cu}) "
-            printf '\u2504\u2504'"%.s" {1..6}
-#            printf ' '"%.s" {1..13}
-#            printf '\u2504'"%.s" {1..13}
+            printf '\u2550'"%.s" {1..12}
             printf "  \u2502\u2502\n"
          done
 
