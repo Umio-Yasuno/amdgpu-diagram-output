@@ -30,8 +30,6 @@ amdgpu_var "MEMORY_CLOCK" "max_memory_clock"
 echo
 
 #  https://gitlab.freedesktop.org/mesa/drm/-/blob/master/include/drm/amdgpu_drm.h#L914
-
-
 #  https://cgit.freedesktop.org/~agd5f/linux/commit/drivers/gpu/drm/amd?h=amd-staging-drm-next&id=a01dd4fe8e62b18a16edccda840361c022940125
 
 case ${VRAM_TYPE} in
@@ -57,9 +55,6 @@ echo "GPU ASIC:\t\t${GPU_ASIC}"
 NUM_CU="$(( ${MAX_SHADER_ENGINE} * ${SHADER_ARRAY_PER_SE} * ${CU_PER_SH} ))"
 echo "Compute Units:\t\t${NUM_CU} CU"
 echo "Peak GFX Clock:\t\t${MAX_SHADER_CLOCK} MHz"
-
-#  MAX_SHADER_CLOCK="1275"
-#  GPU_FAMILY="100"
 
 echo
 
@@ -107,6 +102,8 @@ esac
 printf "\n"
 
 echo "VRAM Bit Width:\t\t${VRAM_BIT_WIDTH}-bit"
+echo "Peak Memory Clock:\t${MEMORY_CLOCK} MHz"
+
 VRAM_MBW="$(echo " ${VRAM_BIT_WIDTH} / 8 * ${DATA_RATE} / 1000" | bc)"
 echo "Peak VRAM Bandwidth:\t${VRAM_MBW} GB/s"
 
@@ -131,7 +128,6 @@ do
          for (( cu=0; cu<${CU_PER_SH}; cu++ ))
          do
             printf " \u2502 \u2502  "
-#            printf ' '"%.s" {1..13}
             printf '\u2550'"%.s" {1..12}
             printf " CU(${cu}) "
             printf '\u2550'"%.s" {1..12}
@@ -167,11 +163,10 @@ do
          printf "\u2502 ${L2C_SIZE} \u2502"
          ;;
       2)
-         printf "\u2514"
-      #   printf '\u2500'"%.s" {1..7}
-         printf "\u2500\u2500\u2500"
+         printf "\u2514" 
+         printf '\u2500'"%.s" {1..3}
          printf "\u252c"
-         printf "\u2500\u2500\u2500"
+         printf '\u2500'"%.s" {1..3}
          printf "\u2518"
          ;;
       *)
@@ -188,10 +183,7 @@ do
       printf "    "
       case ${c} in
       0)
-         printf "\u250c"
-         printf "\u2500"
-         printf "\u2534\u2500\u2500"
-         printf "\u2510"
+         printf "\u250c\u2500\u2534\u2500\u2500\u2510"
          ;;
       1)
          printf "\u2502 RB \u2502"
