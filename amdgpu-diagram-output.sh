@@ -127,11 +127,14 @@ do
 
          for (( cu=0; cu<${CU_PER_SH}; cu++ ))
          do
-            printf " \u2502 \u2502 "
-            printf '\u2504'"%.s" {1..13}
+            printf " \u2502 \u2502  "
+#            printf ' '"%.s" {1..13}
+            printf '\u2504\u2504'"%.s" {1..6}
             printf " CU(${cu}) "
-            printf '\u2504'"%.s" {1..13}
-            printf " \u2502\u2502\n"
+            printf '\u2504\u2504'"%.s" {1..6}
+#            printf ' '"%.s" {1..13}
+#            printf '\u2504'"%.s" {1..13}
+            printf "  \u2502\u2502\n"
          done
 
       printf " \u2502 \u2514"
