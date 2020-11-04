@@ -10,11 +10,12 @@ alias echo="echo -e"
 amdgpu_var() {
    export ${1}="$( echo ${GPUINFO} | grep " ${2} =" | sed -e "s/^.*${2}\ \=\ //g" )"
 
-#  debug
+#   debug
 #   eval echo "${1} : "'$'${1}""
 }
 
 amdgpu_var "GPU_ASIC" "name"
+amdgpu_var "CARD_NAME" "marketing_name"
 amdgpu_var "GPU_FAMILY" "family"
 amdgpu_var "MAX_SHADER_ENGINE" "max_se"
 amdgpu_var "SHADER_ARRAY_PER_SE" "max_sh_per_se"
@@ -29,6 +30,7 @@ amdgpu_var "MEMORY_CLOCK" "max_memory_clock"
 
 debug_amdgpu_spec() {
    export GPU_ASIC="NAVI10"
+   export CARD_NAME="Navi10 Card"
    export GPU_FAMILY="77"
    export MAX_SHADER_ENGINE="2"
    export SHADER_ARRAY_PER_SE="2"
@@ -37,7 +39,7 @@ debug_amdgpu_spec() {
    export NUM_RB="16"
    export L2_CACHE="4194304"
    export NUM_L2_CACHE_BLOCK="16"
-   export VRAM_BIT_WIDDH="256"
+   export VRAM_BIT_WIDTH="256"
    export VRAM_TYPE="9"
    export MEMORY_CLOCK="875"
 }
@@ -46,36 +48,17 @@ debug_amdgpu_spec() {
 
 echo
 
-#  https://gitlab.freedesktop.org/mesa/drm/-/blob/master/include/drm/amdgpu_drm.h#L914
-#  https://cgit.freedesktop.org/~agd5f/linux/commit/drivers/gpu/drm/amd?h=amd-staging-drm-next&id=a01dd4fe8e62b18a16edccda840361c022940125
-
-case ${VRAM_TYPE} in
-   3)
-      #  GDDR3
-      DATA_RATE="$(( ${MEMORY_CLOCK} * 2 ))"
-      ;;
-   5)
-      #  GDDR5
-      DATA_RATE="$(( ${MEMORY_CLOCK} * 4 ))"
-      ;;
-   6)
-      #  HBM/2
-      DATA_RATE="$(( ${MEMORY_CLOCK} * 2 ))"
-      ;;
-   9)
-      #  GDDR6
-      DATA_RATE="$(( ${MEMORY_CLOCK} * 2 * 8 ))"
-      ;;
-   7|8|*)
-      #  DDR3/4
-      DATA_RATE="$(( ${MEMORY_CLOCK} ))"
-      ;;
-esac
-
 echo "GPU ASIC:\t\t${GPU_ASIC}"
+echo "Marketing Name:\t\t${CARD_NAME}\n"
 
 NUM_CU="$(( ${MAX_SHADER_ENGINE} * ${SHADER_ARRAY_PER_SE} * ${CU_PER_SH} ))"
-echo "Compute Units:\t\t${NUM_CU} CU"
+
+if [ ${GPU_FAMILY} -ge 77 ];then
+   echo "WorkGroup Processors:\t$(( ${NUM_CU} / 2 )) WGP\t(${NUM_CU} CU)"
+else 
+   echo "Compute Units:\t\t${NUM_CU} CU"
+fi
+
 echo "Peak GFX Clock:\t\t${MAX_SHADER_CLOCK} MHz"
 
 echo
@@ -83,57 +66,84 @@ echo
 #  https://gitlab.freedesktop.org/mesa/mesa/-/blob/master/src/amd/common/amd_family.h
 
 if [ ${GPU_FAMILY} -ge 77 ];then
-   echo "FP16 Packed"
-   echo "Peak FP16:\t$(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000 * 2" | bc ) TFlops"
+   echo "Peak FP16 (Packed):\t$(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000 * 2" | bc ) TFlops"
 fi
 
-echo "Peak FP32:\t$(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000" | bc ) TFlops"
-echo
+echo "Peak FP32:\t\t$(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000" | bc ) TFlops\n"
 
-echo "Peak Pixel Fill-Rate:\t$(echo "scale=2;${NUM_RB} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc ) GP/s"
-echo "Peak Texture Fill-Rate:\t$(echo "scale=2;${NUM_CU} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc) GT/s"
+echo "RBs (Render Backends):\t${NUM_RB} RB ($(( ${NUM_RB} * 4 )) ROP)"
+echo "Peak Pixel Fill-Rate:\t$(echo "scale=2;${NUM_RB} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc ) GP/s\n"
 
-echo
+echo "TMUs (Texture Mapping Units):\t$(( ${NUM_CU} * 4 )) TMU"
+echo "Peak Texture Fill-Rate:\t\t$(echo "scale=2;${NUM_CU} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc) GT/s\n"
 
-printf "VRAM Type:\t\t"
+#  https://gitlab.freedesktop.org/mesa/drm/-/blob/2420768d023e0c257d2752a5c212d5dd3528a249/include/drm/amdgpu_drm.h#L938
+#  https://cgit.freedesktop.org/~agd5f/linux/commit/drivers/gpu/drm/amd?h=amd-staging-drm-next&id=a01dd4fe8e62b18a16edccda840361c022940125
+
 case ${VRAM_TYPE} in
    1)
-      printf "GDDR1"
+      VRAM_MODULE="GDDR1"
       ;;
    2)
-      printf "DDR2"
+      VRAM_MODULE="DDR2"
       ;;
    3)
-      printf "GDDR3"
+      #  GDDR3
+      VRAM_MODULE="GDDR3"
+      DATA_RATE="$(( ${MEMORY_CLOCK} * 2 ))"
       ;;
    4)
-      printf "GDDR4"
+      VRAM_MODULE="GDDR4"
       ;;
    5)
-      printf "GDDR5"
+      #  GDDR5
+      VRAM_MODULE="GDDR5"
+      DATA_RATE="$(( ${MEMORY_CLOCK} * 4 ))"
       ;;
    6)
-      printf "HBM"
-      ;;
-   7)
-      printf "DDR3"
-      ;;
-   8)
-      printf "DDR4"
+      #  HBM/2
+      VRAM_MODULE="HBM"
+      DATA_RATE="$(( ${MEMORY_CLOCK} * 2 ))"
       ;;
    9)
-      printf "GDDR6"
+      #  GDDR6
+      VRAM_MODULE="GDDR6"
+      DATA_RATE="$(( ${MEMORY_CLOCK} * 2 * 8 ))"
+      ;;
+   7)
+      #  DDR3/4
+      VRAM_MODULE="DDR3"
+      DATA_RATE="$(( ${MEMORY_CLOCK} ))"
+      ;;
+   8)
+      #  DDR3/4
+      VRAM_MODULE="DDR4"
+      DATA_RATE="$(( ${MEMORY_CLOCK} ))"
+      ;;
+   0|*)
+      VRAM_MODULE="Unknown"
       ;;
 esac
-printf "\n"
+
+echo "VRAM Type:\t\t${VRAM_MODULE}"
 
 echo "VRAM Bit Width:\t\t${VRAM_BIT_WIDTH}-bit"
 echo "Peak Memory Clock:\t${MEMORY_CLOCK} MHz"
 
-VRAM_MBW="$(echo " ${VRAM_BIT_WIDTH} / 8 * ${DATA_RATE} / 1000" | bc)"
-echo "Peak VRAM Bandwidth:\t${VRAM_MBW} GB/s"
+if [ ${VRAM_TYPE} -le 2 ] || [ ${VRAM_TYPE} -eq 4 ];then
+   VRAM_MBW="Unknown"
+else
+   VRAM_MBW="$(echo " ${VRAM_BIT_WIDTH} / 8 * ${DATA_RATE} / 1000" | bc) GB/s"
+fi
 
-printf "\n\n"
+echo "Peak VRAM Bandwidth:\t${VRAM_MBW}\n"
+
+echo "L2 Cache Blocks:\t${NUM_L2_CACHE_BLOCK} Block"
+echo "L2 Cache Size:\t\t$(echo "${L2_CACHE} / 2^10 / 2^10" | bc ) MB ($(echo "${L2_CACHE} / 2^10" | bc) KB)"
+
+printf "\n\n\n"
+
+echo "## AMD GPU Diagram\n\n"
 
 for (( se=0; se<${MAX_SHADER_ENGINE}; se++ ))
 do
@@ -153,6 +163,18 @@ do
       printf '\u2500\u2500'"%.s" {1..9}
       printf "\u2510\u00a0\u2502\n"
 
+<<WGP
+   if [ ${GPU_FAMILY} -ge 77 ];then
+         for (( wgp=0; wgp<$(( ${CU_PER_SH} /2 )); wgp++ ))
+         do
+            printf "\u00a0\u2502\u00a0\u2502\u00a0\u00a0"
+            printf '\u2550'"%.s" {1..12}
+            printf "\u00a0WGP(${wgp})\u00a0"
+            printf '\u2550'"%.s" {1..12}
+            printf "\u00a0\u00a0\u2502\u00a0\u2502\n"
+         done
+   else
+WGP
          for (( cu=0; cu<${CU_PER_SH}; cu++ ))
          do
             printf "\u00a0\u2502\u00a0\u2502\u00a0\u00a0"
@@ -161,6 +183,7 @@ do
             printf '\u2550'"%.s" {1..12}
             printf "\u00a0\u00a0\u2502\u00a0\u2502\n"
          done
+#   fi
 
       printf "\u00a0\u2502\u00a0\u2514"
       printf '\u2500'"%.s" {1..35}
@@ -168,58 +191,7 @@ do
 
    done
 
-<<OUT
-      printf "\u00a0\u2502"
-      printf '\u00a0'"%.s" {1..39}
-      printf "\u2502\n"
-OUT
-
-
 RB_PER_SE="$(( ${NUM_RB} / ${MAX_SHADER_ENGINE}))"
-
-<<OUT
-
-if [ ${RB_PER_SE} -le 4 ];then
-
-   for (( c=0; c<=2; c++ ))
-   do
-         printf "\u00a0\u2502\u2001\u2001\u2001"
-      for (( rbc=0; rbc<${RB_PER_SE}; rbc++ ))
-      do
-         case ${c} in
-            0)
-               printf "\u250c\u2500\u2500\u2500\u2500\u2510"
-               ;;
-            1)
-               printf "\u2502\u00a0RB\u00a0\u2502"
-               ;;
-            2)
-               printf "\u2514"
-               printf '\u2500'"%.s" {1..4}
-               printf "\u2518"
-               ;;
-            *)
-               exit 1
-         esac
-
-         printf '\u00a0'"%.s" {1..3}
-
-      done
-
-         for (( fill=${RB_PER_SE}; fill<4; fill++ ))
-         do
-            printf '\u00a0'"%.s" {1..9}
-         done
-
-         printf "\u2502"
-
-      printf "\n"
-   done
-#      if [ ${NUM_RB} -le 4 ];then
-#      fi
-else
-OUT
-
 RBF="${RB_PER_SE}"
 
 while [ ${RBF} -gt 0 ]
@@ -271,8 +243,6 @@ do
 
 done
 
-# fi
-
 printf "\u00a0\u2514"
 printf '\u2500'"%.s" {1..39}
 printf "\u2518"
@@ -280,10 +250,7 @@ printf "\n\n"
 
 done
 
-printf "\n"
-
 L2C_SIZE="$(echo "${L2_CACHE} / ${NUM_L2_CACHE_BLOCK} / 2^10" | bc )KB"
-
 L2CBF="${NUM_L2_CACHE_BLOCK}"
 
 while [ ${L2CBF} -gt 0 ]
@@ -324,32 +291,4 @@ done
 
 done
 
-<<OUT
-
-RB_PER_SE="$(( ${NUM_RB} / ${MAX_SHADER_ENGINE}))"
-
-for (( c=0; c<=2; c++ ))
-do
-   for (( rb=0; rb<${NUM_RB}; rb++ ))
-   do
-      printf "\u2001\u2001\u2001\u2001"
-      case ${c} in
-      0)
-         printf "\u250c\u2500\u2500\u2500\u2500\u2510"
-         ;;
-      1)
-         printf "\u2502\u00a0RB\u00a0\u2502"
-         ;;
-      2)
-         printf "\u2514"
-         printf '\u2500'"%.s" {1..4}
-         printf "\u2518"
-         ;;
-      *)
-         exit 1
-      esac
-   done
-      printf "\n"
-done
-OUT
-
+echo
