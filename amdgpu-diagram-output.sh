@@ -45,7 +45,7 @@ debug_amdgpu_spec() {
    export MEMORY_CLOCK="875"
 }
 
-# debug_amdgpu_spec
+debug_amdgpu_spec
 
 echo
 
@@ -154,55 +154,56 @@ echo "## AMD GPU Diagram\n\n"
 for (( se=0; se<${MAX_SE}; se++ ))
 do
 
-   printf "\u00a0\u250C\u2500\u00a0ShaderEngine(${se})\u00a0\u00a0"
+   printf " \u250C\u2500 ShaderEngine(${se})  "
    printf '\u2500\u2500'"%.s" {1..10}
    printf "\u2510\n"
 
-      printf "\u00a0\u2502"
-      printf '\u00a0'"%.s" {1..39}
+      printf " \u2502"
+      printf ' '"%.s" {1..39}
       printf "\u2502\n"
    for (( sh=0; sh<${SA_PER_SE}; sh++ ))
    do
 
-      printf "\u00a0\u2502\u00a0\u250C\u2500 ShaderArray(${sh})\u00a0"
+      printf " \u2502 \u250C\u2500 ShaderArray(${sh}) "
       printf '\u2500\u2500'"%.s" {1..9}
-      printf "\u2510\u00a0\u2502\n"
+      printf "\u2510 \u2502\n"
 
       if [ ${GPU_FAMILY} -ge 77 ];then
          for (( wgp=0; wgp<$(( ${CU_PER_SH} /2 )); wgp++ ))
          do
-            printf "\u00a0\u2502\u00a0\u2502\u00a0\u00a0"
+            printf " \u2502 \u2502  "
             printf '\u2550'"%.s" {1..5}
-            printf "\u00a0"
+            printf " "
             printf '\u2550'"%.s" {1..5}
-            printf "\u00a0\u00a0WGP(${wgp})\u00a0\u00a0"
+            printf "  WGP(${wgp})  "
             printf '\u2550'"%.s" {1..5}
-            printf "\u00a0"
+            printf " "
             printf '\u2550'"%.s" {1..5}
-            printf "\u00a0\u2502\u00a0\u2502\n"
+            printf " \u2502 \u2502\n"
          done
       else
          for (( cu=0; cu<${CU_PER_SH}; cu++ ))
          do
-            printf "\u00a0\u2502\u00a0\u2502"
-            printf '\u00a0'"%.s" {1..3}
+            printf " \u2502 \u2502"
+            printf ' '"%.s" {1..3}
             printf '\u2550'"%.s" {1..4}
-            printf "\u00a0\u00a0"
+            printf "  "
             printf '\u2550'"%.s" {1..4}
-            printf "\u00a0\u00a0CU(${cu})\u00a0\u00a0"
+            printf "  CU(${cu})  "
             printf '\u2550'"%.s" {1..4}
-            printf "\u00a0\u00a0"
+            printf "  "
             printf '\u2550'"%.s" {1..4}
-            printf '\u00a0'"%.s" {1..3}
-            printf "\u2502\u00a0\u2502\n"
+            printf ' '"%.s" {1..3}
+            printf "\u2502 \u2502\n"
          done
       fi
-         printf "\u00a0\u2502\u00a0\u2502"
-         printf '\u00a0'"%.s" {1..3}
+         printf " \u2502 \u2502"
 
 
 RB_PER_SA="$(( ${NUM_RB} / ${MAX_SE} / ${SA_PER_SE} ))"
 RBF="${RB_PER_SE}"
+
+      printf "   "
 
       while [ ${RB_PER_SA} -gt 0 ]
       do
@@ -215,7 +216,6 @@ RBF="${RB_PER_SE}"
 
          for (( rbc=0; rbc<${RBTMP}; rbc++ ))
          do
-#            printf "\u00a0"
             printf "[-RB-]"
             printf ' '"%.s" {1..2}
          done
@@ -225,90 +225,48 @@ RBF="${RB_PER_SE}"
             printf ' '"%.s" {1..8}
          done
 
-         printf "\u2502\u00a0\u2502"
+         printf "\u2502 \u2502"
          printf "\n"
 
          RB_PER_SA=$(( ${RB_PER_SA} - 4))
-      done
+      done # RB end
 
 #      printf "\n"
 
-      printf "\u00a0\u2502\u00a0\u2514"
-      printf '\u2500'"%.s" {1..35}
-      printf "\u2518\u00a0\u2502\n"
 
+RDNA_L1C_SIZE="128KB"
+
+if [ ${GPU_FAMILY} -ge 77 ];then
+   printf " \u2502 \u2502"
+   printf ' '"%.s" {1..18}
+   printf "[- L1$ ${RDNA_L1C_SIZE} -]"
+   printf "  \u2502 \u2502"
+   printf "\n"
+fi
+
+   # ShaderArray last line
+      printf " \u2502 \u2514"
+      printf '\u2500'"%.s" {1..35}
+      printf "\u2518 \u2502\n"
    done # ShaderArray end
 
-<<RB
-RB_PER_SE="$(( ${NUM_RB} / ${MAX_SE}))"
-RBF="${RB_PER_SE}"
-
-while [ ${RBF} -gt 0 ]
-do
-
-   for (( c=0; c<=2; c++ ))
-   do
-         printf "\u00a0\u2502\u2001\u2001\u2001"
-
-   if [ ${RBF} -gt 4 ];then
-      RBTMP="4"
-   else
-      RBTMP="${RBF}"
-   fi
-
-      for (( rbc=0; rbc<${RBTMP}; rbc++ ))
-      do
-         case ${c} in
-            0)
-               printf "\u250c\u2500\u2500\u2500\u2500\u2510"
-               ;;
-            1)
-               printf "\u2502\u00a0RB\u00a0\u2502"
-               ;;
-            2)
-               printf "\u2514"
-               printf '\u2500'"%.s" {1..4}
-               printf "\u2518"
-               ;;
-            *)
-               exit 1
-         esac
-
-         printf '\u00a0'"%.s" {1..3}
-
-      done
-
-         for (( fill=${RBTMP}; fill<4; fill++ ))
-         do
-            printf '\u00a0'"%.s" {1..9}
-         done
-
-         printf "\u2502"
-
-      printf "\n"
-   done
-
-   RBF=$(( ${RBF} - 4))
-
-done
-RB
-
+<<L1C
 RDNA_L1C_SIZE="128KB"
 
 if [ ${GPU_FAMILY} -ge 77 ];then
 
 for (( c=0; c<=2; c++ ))
 do
-      printf "\u00a0\u2502"
+      printf " \u2502"
    for (( l1c=0; l1c<${SA_PER_SE}; l1c++ ))
    do
-      printf '\u00a0'"%.s" {1..5}
+      printf ' '"%.s" {1..5}
       case ${c} in
       0)
-         printf "\u250c\u2500\u2500\u00a0L1$\u00a0\u2500\u2500\u2510"
+         printf "\u250c\u2500\u2500 L1$ \u2500\u2500\u2510"
          ;;
       1)
-         printf "\u2502\u00a0\u00a0${RDNA_L1C_SIZE}\u00a0\u00a0\u2502"
+         printf "\u2502  ${RDNA_L1C_SIZE}  \u2502"
          ;;
       2)
          printf "\u2514" 
@@ -318,15 +276,19 @@ do
       *)
          exit 1
       esac
-         printf '\u00a0'"%.s" {1..2}
+         printf ' '"%.s" {1..2}
    done
-      printf "\u00a0\u00a0\u00a0\u2502\u2000"
+      printf "   \u2502\u2000"
       printf "\n"
-done
+done # RDNA_L1cache end
 fi
+L1C
 
+printf " \u2502 "
+printf "[- Geometory -]"
+printf "\n"
 
-printf "\u00a0\u2514"
+printf " \u2514"
 printf '\u2500'"%.s" {1..39}
 printf "\u2518"
 printf "\n\n"
@@ -369,10 +331,10 @@ do
       printf "\u2001"
       case ${c} in
       0)
-         printf "\u250c\u2500\u00a0L2$\u00a0\u2500\u2510"
+         printf "\u250c\u2500 L2$ \u2500\u2510"
          ;;
       1)
-         printf "\u2502\u00a0${L2C_SIZE}\u00a0\u2502"
+         printf "\u2502 ${L2C_SIZE} \u2502"
          ;;
       2)
          printf "\u2514" 
