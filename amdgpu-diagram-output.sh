@@ -17,8 +17,8 @@ amdgpu_var() {
 amdgpu_var "GPU_ASIC" "name"
 amdgpu_var "CARD_NAME" "marketing_name"
 amdgpu_var "GPU_FAMILY" "family"
-amdgpu_var "MAX_SHADER_ENGINE" "max_se"
-amdgpu_var "SHADER_ARRAY_PER_SE" "max_sh_per_se"
+amdgpu_var "MAX_SE" "max_se"
+amdgpu_var "SA_PER_SE" "max_sh_per_se"
 amdgpu_var "CU_PER_SH" "max_good_cu_per_sa"
 amdgpu_var "MAX_SHADER_CLOCK" "max_shader_clock"
 amdgpu_var "NUM_RB" "num_render_backends"
@@ -27,17 +27,18 @@ amdgpu_var "NUM_L2_CACHE_BLOCK" "num_tcc_blocks"
 amdgpu_var "VRAM_BIT_WIDTH" "vram_bit_width"
 amdgpu_var "VRAM_TYPE" "vram_type"
 amdgpu_var "MEMORY_CLOCK" "max_memory_clock"
+amdgpu_var "RB_PLUS" "has_rbplus"
 
 debug_amdgpu_spec() {
    export GPU_ASIC="NAVI10"
    export CARD_NAME="Navi10 Card"
    export GPU_FAMILY="77"
-   export MAX_SHADER_ENGINE="2"
-   export SHADER_ARRAY_PER_SE="2"
+   export MAX_SE="2"
+   export SA_PER_SE="2"
    export CU_PER_SH="10"
    export MAX_SHADER_CLOCK="2000"
    export NUM_RB="16"
-   export L2_CACHE="4194304"
+   export L2_CACHE="$(echo "4096 * 1024" | bc)"
    export NUM_L2_CACHE_BLOCK="16"
    export VRAM_BIT_WIDTH="256"
    export VRAM_TYPE="9"
@@ -51,10 +52,10 @@ echo
 echo "GPU ASIC:\t\t${GPU_ASIC}"
 echo "Marketing Name:\t\t${CARD_NAME}\n"
 
-NUM_CU="$(( ${MAX_SHADER_ENGINE} * ${SHADER_ARRAY_PER_SE} * ${CU_PER_SH} ))"
+NUM_CU="$(( ${MAX_SE} * ${SA_PER_SE} * ${CU_PER_SH} ))"
 
 if [ ${GPU_FAMILY} -ge 77 ];then
-   echo "WorkGroup Processors:\t$(( ${NUM_CU} / 2 )) WGP\t(${NUM_CU} CU)"
+   echo "WorkGroup Processors:\t$(( ${NUM_CU} / 2 )) WGP (${NUM_CU} CU)"
 else 
    echo "Compute Units:\t\t${NUM_CU} CU"
 fi
@@ -71,7 +72,12 @@ fi
 
 echo "Peak FP32:\t\t$(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000" | bc ) TFlops\n"
 
-echo "RBs (Render Backends):\t${NUM_RB} RB ($(( ${NUM_RB} * 4 )) ROP)"
+if [ ${RB_PLUS} ];then
+   echo "RBs (Render Backends):\t${NUM_RB} RB ($(( ${NUM_RB} * 4 )) ROP)"
+else
+   echo "RBs (Render Backends):\t${NUM_RB} RB+ ($(( ${NUM_RB} * 8 )) ROP)"
+fi
+
 echo "Peak Pixel Fill-Rate:\t$(echo "scale=2;${NUM_RB} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc ) GP/s\n"
 
 echo "TMUs (Texture Mapping Units):\t$(( ${NUM_CU} * 4 )) TMU"
@@ -139,59 +145,102 @@ fi
 echo "Peak VRAM Bandwidth:\t${VRAM_MBW}\n"
 
 echo "L2 Cache Blocks:\t${NUM_L2_CACHE_BLOCK} Block"
-echo "L2 Cache Size:\t\t$(echo "${L2_CACHE} / 2^10 / 2^10" | bc ) MB ($(echo "${L2_CACHE} / 2^10" | bc) KB)"
+echo "L2 Cache Size:\t\t$(echo "${L2_CACHE} / 1024 / 1024" | bc ) MB ($(echo "${L2_CACHE} / 1024" | bc) KB)"
 
 printf "\n\n\n"
 
 echo "## AMD GPU Diagram\n\n"
 
-for (( se=0; se<${MAX_SHADER_ENGINE}; se++ ))
+for (( se=0; se<${MAX_SE}; se++ ))
 do
 
    printf "\u00a0\u250C\u2500\u00a0ShaderEngine(${se})\u00a0\u00a0"
    printf '\u2500\u2500'"%.s" {1..10}
    printf "\u2510\n"
 
-   for (( sh=0; sh<${SHADER_ARRAY_PER_SE}; sh++ ))
-   do
-
       printf "\u00a0\u2502"
       printf '\u00a0'"%.s" {1..39}
       printf "\u2502\n"
+   for (( sh=0; sh<${SA_PER_SE}; sh++ ))
+   do
 
       printf "\u00a0\u2502\u00a0\u250C\u2500 ShaderArray(${sh})\u00a0"
       printf '\u2500\u2500'"%.s" {1..9}
       printf "\u2510\u00a0\u2502\n"
 
-<<WGP
-   if [ ${GPU_FAMILY} -ge 77 ];then
+      if [ ${GPU_FAMILY} -ge 77 ];then
          for (( wgp=0; wgp<$(( ${CU_PER_SH} /2 )); wgp++ ))
          do
             printf "\u00a0\u2502\u00a0\u2502\u00a0\u00a0"
-            printf '\u2550'"%.s" {1..12}
-            printf "\u00a0WGP(${wgp})\u00a0"
-            printf '\u2550'"%.s" {1..12}
-            printf "\u00a0\u00a0\u2502\u00a0\u2502\n"
+            printf '\u2550'"%.s" {1..5}
+            printf "\u00a0"
+            printf '\u2550'"%.s" {1..5}
+            printf "\u00a0\u00a0WGP(${wgp})\u00a0\u00a0"
+            printf '\u2550'"%.s" {1..5}
+            printf "\u00a0"
+            printf '\u2550'"%.s" {1..5}
+            printf "\u00a0\u2502\u00a0\u2502\n"
          done
-   else
-WGP
+      else
          for (( cu=0; cu<${CU_PER_SH}; cu++ ))
          do
-            printf "\u00a0\u2502\u00a0\u2502\u00a0\u00a0"
-            printf '\u2550'"%.s" {1..12}
-            printf "\u00a0CU(${cu})\u00a0"
-            printf '\u2550'"%.s" {1..12}
-            printf "\u00a0\u00a0\u2502\u00a0\u2502\n"
+            printf "\u00a0\u2502\u00a0\u2502"
+            printf '\u00a0'"%.s" {1..3}
+            printf '\u2550'"%.s" {1..4}
+            printf "\u00a0\u00a0"
+            printf '\u2550'"%.s" {1..4}
+            printf "\u00a0\u00a0CU(${cu})\u00a0\u00a0"
+            printf '\u2550'"%.s" {1..4}
+            printf "\u00a0\u00a0"
+            printf '\u2550'"%.s" {1..4}
+            printf '\u00a0'"%.s" {1..3}
+            printf "\u2502\u00a0\u2502\n"
          done
-#   fi
+      fi
+         printf "\u00a0\u2502\u00a0\u2502"
+         printf '\u00a0'"%.s" {1..3}
+
+
+RB_PER_SA="$(( ${NUM_RB} / ${MAX_SE} / ${SA_PER_SE} ))"
+RBF="${RB_PER_SE}"
+
+      while [ ${RB_PER_SA} -gt 0 ]
+      do
+
+         if [ ${RB_PER_SA} -gt 4 ];then
+            RBTMP="4"
+         else
+            RBTMP="${RB_PER_SA}"
+         fi
+
+         for (( rbc=0; rbc<${RBTMP}; rbc++ ))
+         do
+#            printf "\u00a0"
+            printf "[-RB-]"
+            printf ' '"%.s" {1..2}
+         done
+
+         for (( fill=${RBTMP}; fill<4; fill++ ))
+         do
+            printf ' '"%.s" {1..8}
+         done
+
+         printf "\u2502\u00a0\u2502"
+         printf "\n"
+
+         RB_PER_SA=$(( ${RB_PER_SA} - 4))
+      done
+
+#      printf "\n"
 
       printf "\u00a0\u2502\u00a0\u2514"
       printf '\u2500'"%.s" {1..35}
       printf "\u2518\u00a0\u2502\n"
 
-   done
+   done # ShaderArray end
 
-RB_PER_SE="$(( ${NUM_RB} / ${MAX_SHADER_ENGINE}))"
+<<RB
+RB_PER_SE="$(( ${NUM_RB} / ${MAX_SE}))"
 RBF="${RB_PER_SE}"
 
 while [ ${RBF} -gt 0 ]
@@ -242,15 +291,65 @@ do
    RBF=$(( ${RBF} - 4))
 
 done
+RB
+
+RDNA_L1C_SIZE="128KB"
+
+if [ ${GPU_FAMILY} -ge 77 ];then
+
+for (( c=0; c<=2; c++ ))
+do
+      printf "\u00a0\u2502"
+   for (( l1c=0; l1c<${SA_PER_SE}; l1c++ ))
+   do
+      printf '\u00a0'"%.s" {1..5}
+      case ${c} in
+      0)
+         printf "\u250c\u2500\u2500\u00a0L1$\u00a0\u2500\u2500\u2510"
+         ;;
+      1)
+         printf "\u2502\u00a0\u00a0${RDNA_L1C_SIZE}\u00a0\u00a0\u2502"
+         ;;
+      2)
+         printf "\u2514" 
+         printf '\u2500'"%.s" {1..9}
+         printf "\u2518"
+         ;;
+      *)
+         exit 1
+      esac
+         printf '\u00a0'"%.s" {1..2}
+   done
+      printf "\u00a0\u00a0\u00a0\u2502\u2000"
+      printf "\n"
+done
+fi
+
 
 printf "\u00a0\u2514"
 printf '\u2500'"%.s" {1..39}
 printf "\u2518"
 printf "\n\n"
 
-done
+done # ShaderEngine end
 
-L2C_SIZE="$(echo "${L2_CACHE} / ${NUM_L2_CACHE_BLOCK} / 2^10" | bc )KB"
+#  correct AMDGPU L2cache Size, maybe (GFX9+)
+#  https://gitlab.freedesktop.org/mesa/mesa/-/blob/master/src/amd/common/ac_gpu_info.c
+
+case ${GPU_ASIC} in
+   RAVEN2)
+      L2_CACHE="$(( 512 * 1024 ))"
+      ;;
+   RAVEN|RENOIR)
+      L2_CACHE="$(( 1024 * 1024 ))"
+      ;;
+   VEGA12|NAVI14)
+      L2_CACHE="$(( 2048 * 1024 ))"
+      ;;
+   *)
+esac
+
+L2C_SIZE="$(echo "${L2_CACHE} / ${NUM_L2_CACHE_BLOCK} / 1024" | bc )KB"
 L2CBF="${NUM_L2_CACHE_BLOCK}"
 
 while [ ${L2CBF} -gt 0 ]
