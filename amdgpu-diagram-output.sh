@@ -45,7 +45,9 @@ debug_amdgpu_spec() {
    export MEMORY_CLOCK="875"
 }
 
-debug_amdgpu_spec
+if [ ${1} ] && [ ${1} = "--debug" ];then
+   debug_amdgpu_spec
+fi
 
 echo
 
@@ -147,9 +149,9 @@ echo "Peak VRAM Bandwidth:\t${VRAM_MBW}\n"
 echo "L2 Cache Blocks:\t${NUM_L2_CACHE_BLOCK} Block"
 echo "L2 Cache Size:\t\t$(echo "${L2_CACHE} / 1024 / 1024" | bc ) MB ($(echo "${L2_CACHE} / 1024" | bc) KB)"
 
-printf "\n\n\n"
+printf "\n\n"
 
-echo "## AMD GPU Diagram\n\n"
+echo "## AMD GPU Diagram\n"
 
 for (( se=0; se<${MAX_SE}; se++ ))
 do
@@ -158,9 +160,9 @@ do
    printf '\u2500\u2500'"%.s" {1..10}
    printf "\u2510\n"
 
-      printf " \u2502"
-      printf ' '"%.s" {1..39}
-      printf "\u2502\n"
+#      printf " \u2502"
+#      printf ' '"%.s" {1..39}
+#      printf "\u2502\n"
    for (( sh=0; sh<${SA_PER_SE}; sh++ ))
    do
 
@@ -238,11 +240,17 @@ RDNA_L1C_SIZE="128KB"
 
 if [ ${GPU_FAMILY} -ge 77 ];then
    printf " \u2502 \u2502"
-   printf ' '"%.s" {1..18}
-   printf "[- L1$ ${RDNA_L1C_SIZE} -]"
-   printf "  \u2502 \u2502"
+   printf ' '"%.s" {1..10}
+   printf "[-- L1$ ${RDNA_L1C_SIZE} --]"
+   printf ' '"%.s" {1..8}
+   printf "\u2502 \u2502"
    printf "\n"
 fi
+
+   printf " \u2502 \u2502  "
+   printf "[- Rasterizer /Primitive Unit -]"
+   printf " \u2502 \u2502"
+   printf "\n"
 
    # ShaderArray last line
       printf " \u2502 \u2514"
@@ -250,42 +258,11 @@ fi
       printf "\u2518 \u2502\n"
    done # ShaderArray end
 
-<<L1C
-RDNA_L1C_SIZE="128KB"
-
-if [ ${GPU_FAMILY} -ge 77 ];then
-
-for (( c=0; c<=2; c++ ))
-do
-      printf " \u2502"
-   for (( l1c=0; l1c<${SA_PER_SE}; l1c++ ))
-   do
-      printf ' '"%.s" {1..5}
-      case ${c} in
-      0)
-         printf "\u250c\u2500\u2500 L1$ \u2500\u2500\u2510"
-         ;;
-      1)
-         printf "\u2502  ${RDNA_L1C_SIZE}  \u2502"
-         ;;
-      2)
-         printf "\u2514" 
-         printf '\u2500'"%.s" {1..9}
-         printf "\u2518"
-         ;;
-      *)
-         exit 1
-      esac
-         printf ' '"%.s" {1..2}
-   done
-      printf "   \u2502\u2000"
-      printf "\n"
-done # RDNA_L1cache end
-fi
-L1C
-
-printf " \u2502 "
-printf "[- Geometory -]"
+printf " \u2502"
+printf ' '"%.s" {1..7}
+printf "[- Geometory Processor -]"
+printf ' '"%.s" {1..7}
+printf "\u2502"
 printf "\n"
 
 printf " \u2514"
@@ -311,8 +288,30 @@ case ${GPU_ASIC} in
    *)
 esac
 
-L2C_SIZE="$(echo "${L2_CACHE} / ${NUM_L2_CACHE_BLOCK} / 1024" | bc )KB"
+L2C_SIZE="$(echo "${L2_CACHE} / ${NUM_L2_CACHE_BLOCK} / 1024" | bc )K"
 L2CBF="${NUM_L2_CACHE_BLOCK}"
+while [ ${L2CBF} -gt 0 ]
+do
+
+   if [ ${L2CBF} -gt 4 ];then
+      L2CB_TMP="4"
+   else
+      L2CB_TMP="${L2CBF}"
+   fi
+
+   printf "\u2000"
+
+   for (( l2c=0; l2c<${L2CB_TMP}; l2c++ ))
+   do
+      printf "[ L2$ ${L2C_SIZE} ] "
+   done
+      printf "\n"
+
+   L2CBF="$(( ${L2CBF} - 4 ))"
+
+done # L2cache end
+
+<<L2C_S
 
 while [ ${L2CBF} -gt 0 ]
 do
@@ -350,6 +349,7 @@ done
 
    L2CBF="$(( ${L2CBF} - 4 ))"
 
-done
+done # L2cache end
 
+L2C_S
 echo
