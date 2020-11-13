@@ -259,8 +259,8 @@ fi
    done # ShaderArray end
 
 printf " \u2502"
-printf ' '"%.s" {1..7}
-printf "[- Geometory Processor -]"
+printf ' '"%.s" {1..8}
+printf "[- Geometry Processor -]"
 printf ' '"%.s" {1..7}
 printf "\u2502"
 printf "\n"
@@ -268,7 +268,7 @@ printf "\n"
 printf " \u2514"
 printf '\u2500'"%.s" {1..39}
 printf "\u2518"
-printf "\n\n"
+printf "\n"
 
 done # ShaderEngine end
 
@@ -290,28 +290,6 @@ esac
 
 L2C_SIZE="$(echo "${L2_CACHE} / ${NUM_L2_CACHE_BLOCK} / 1024" | bc )K"
 L2CBF="${NUM_L2_CACHE_BLOCK}"
-while [ ${L2CBF} -gt 0 ]
-do
-
-   if [ ${L2CBF} -gt 4 ];then
-      L2CB_TMP="4"
-   else
-      L2CB_TMP="${L2CBF}"
-   fi
-
-   printf "\u2000"
-
-   for (( l2c=0; l2c<${L2CB_TMP}; l2c++ ))
-   do
-      printf "[ L2$ ${L2C_SIZE} ] "
-   done
-      printf "\n"
-
-   L2CBF="$(( ${L2CBF} - 4 ))"
-
-done # L2cache end
-
-<<L2C_S
 
 while [ ${L2CBF} -gt 0 ]
 do
@@ -322,34 +300,14 @@ do
       L2CB_TMP="${L2CBF}"
    fi
 
-for (( c=0; c<=2; c++ ))
-do
-     printf "\u2000"
    for (( l2c=0; l2c<${L2CB_TMP}; l2c++ ))
    do
-      printf "\u2001"
-      case ${c} in
-      0)
-         printf "\u250c\u2500 L2$ \u2500\u2510"
-         ;;
-      1)
-         printf "\u2502 ${L2C_SIZE} \u2502"
-         ;;
-      2)
-         printf "\u2514" 
-         printf '\u2500'"%.s" {1..7}
-         printf "\u2518"
-         ;;
-      *)
-         exit 1
-      esac
+      printf "[ L2$ ${L2C_SIZE} ]  "
    done
       printf "\n"
-done
 
    L2CBF="$(( ${L2CBF} - 4 ))"
 
 done # L2cache end
 
-L2C_S
 echo
