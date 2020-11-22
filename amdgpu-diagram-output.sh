@@ -18,24 +18,41 @@ amdgpu_var "GPU_ASIC" "name"
 amdgpu_var "CARD_NAME" "marketing_name"
 amdgpu_var "GPU_FAMILY" "family"
 amdgpu_var "MAX_SE" "max_se"
-amdgpu_var "SA_PER_SE" "max_sh_per_se"
-amdgpu_var "CU_PER_SH" "max_good_cu_per_sa"
+
+if [ $(echo ${GPUINFO} | grep "max_sh_per_se"; echo $?) -eq 0 ];then
+   amdgpu_var "SA_PER_SE" "max_sh_per_se"
+else
+   amdgpu_var "SA_PER_SE" "max_sa_per_se"
+fi
+
+amdgpu_var "CU_PER_SA" "max_good_cu_per_sa"
+amdgpu_var "MIN_CU_PER_SA" "min_good_cu_per_sa"
 amdgpu_var "MAX_SHADER_CLOCK" "max_shader_clock"
-amdgpu_var "NUM_RB" "num_render_backends"
+
+if [ $(echo ${GPUINFO} | grep "num_render_backends"; echo $?) -eq 0 ];then
+   amdgpu_var "NUM_RB" "num_render_backends"
+else
+   amdgpu_var "NUM_RB" "max_render_backends"
+fi
+
 amdgpu_var "L2_CACHE" "l2_cache_size"
 amdgpu_var "NUM_L2_CACHE_BLOCK" "num_tcc_blocks"
 amdgpu_var "VRAM_BIT_WIDTH" "vram_bit_width"
 amdgpu_var "VRAM_TYPE" "vram_type"
 amdgpu_var "MEMORY_CLOCK" "max_memory_clock"
-amdgpu_var "RB_PLUS" "has_rbplus"
+
+amdgpu_var "RB_PLUS" "rbplus_allowed"
 
 debug_amdgpu_spec() {
    export GPU_ASIC="NAVI10"
    export CARD_NAME="Navi10 Card"
-   export GPU_FAMILY="77"
+   export GPU_FAMILY="74"
    export MAX_SE="2"
    export SA_PER_SE="2"
-   export CU_PER_SH="10"
+
+   export CU_PER_SA="5"
+   export MIN_CU_PER_SA="4"
+
    export MAX_SHADER_CLOCK="2000"
    export NUM_RB="16"
    export L2_CACHE="$(echo "4096 * 1024" | bc)"
@@ -43,6 +60,8 @@ debug_amdgpu_spec() {
    export VRAM_BIT_WIDTH="256"
    export VRAM_TYPE="9"
    export MEMORY_CLOCK="875"
+
+   export RB_PLUS="0"
 }
 
 if [ ${1} ] && [ ${1} = "--debug" ];then
@@ -54,10 +73,14 @@ echo
 echo "GPU ASIC:\t\t${GPU_ASIC}"
 echo "Marketing Name:\t\t${CARD_NAME}\n"
 
-NUM_CU="$(( ${MAX_SE} * ${SA_PER_SE} * ${CU_PER_SH} ))"
+if [ ${GPU_FAMILY} -ge 74 ] && [ ${CU_PER_SA} != ${MIN_CU_PER_SA} ];then
+   NUM_CU="$(( ${MAX_SE} * (${CU_PER_SA} + ${MIN_CU_PER_SA}) * 2 ))"
+else
+   NUM_CU="$(( ${MAX_SE} * ${SA_PER_SE} * ${CU_PER_SA} ))"
+fi
 
-if [ ${GPU_FAMILY} -ge 77 ];then
-   echo "WorkGroup Processors:\t$(( ${NUM_CU} / 2 )) WGP (${NUM_CU} CU)"
+if [ ${GPU_FAMILY} -ge 74 ];then
+   echo "WorkGroup Processors:\t$(( ${NUM_CU} / 2)) WGP (${NUM_CU} CU)"
 else 
    echo "Compute Units:\t\t${NUM_CU} CU"
 fi
@@ -68,13 +91,13 @@ echo
 
 #  https://gitlab.freedesktop.org/mesa/mesa/-/blob/master/src/amd/common/amd_family.h
 
-if [ ${GPU_FAMILY} -ge 77 ];then
+if [ ${GPU_FAMILY} -ge 67 ];then
    echo "Peak FP16 (Packed):\t$(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000 * 2" | bc ) TFlops"
 fi
 
 echo "Peak FP32:\t\t$(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000" | bc ) TFlops\n"
 
-if [ ${RB_PLUS} ];then
+if [ ${RB_PLUS} == 0 ];then
    echo "RBs (Render Backends):\t${NUM_RB} RB ($(( ${NUM_RB} * 4 )) ROP)"
 else
    echo "RBs (Render Backends):\t${NUM_RB} RB+ ($(( ${NUM_RB} * 8 )) ROP)"
@@ -170,8 +193,14 @@ do
       printf '\u2500\u2500'"%.s" {1..9}
       printf "\u2510 \u2502\n"
 
-      if [ ${GPU_FAMILY} -ge 77 ];then
-         for (( wgp=0; wgp<$(( ${CU_PER_SH} /2 )); wgp++ ))
+      TMP_CU="${CU_PER_SA}"
+
+      if [ ${sh} == 0 ] && [ ${CU_PER_SA} != ${MIN_CU_PER_SA} ];then
+         TMP_CU="${MIN_CU_PER_SA}"
+      fi
+
+      if [ ${GPU_FAMILY} -ge 74 ];then
+         for (( wgp=0; wgp<${TMP_CU}; wgp++ ))
          do
             printf " \u2502 \u2502  "
             printf '\u2550'"%.s" {1..5}
@@ -182,9 +211,10 @@ do
             printf " "
             printf '\u2550'"%.s" {1..5}
             printf " \u2502 \u2502\n"
+
          done
       else
-         for (( cu=0; cu<${CU_PER_SH}; cu++ ))
+         for (( cu=0; cu<${CU_PER_SA}; cu++ ))
          do
             printf " \u2502 \u2502"
             printf ' '"%.s" {1..3}
@@ -218,7 +248,7 @@ RBF="${RB_PER_SE}"
 
          for (( rbc=0; rbc<${RBTMP}; rbc++ ))
          do
-            printf "[-RB-]"
+            printf "[ RB ]"
             printf ' '"%.s" {1..2}
          done
 
@@ -241,7 +271,7 @@ RDNA_L1C_SIZE="128KB"
 if [ ${GPU_FAMILY} -ge 77 ];then
    printf " \u2502 \u2502"
    printf ' '"%.s" {1..10}
-   printf "[-- L1$ ${RDNA_L1C_SIZE} --]"
+   printf "[-  L1$ ${RDNA_L1C_SIZE}  -]"
    printf ' '"%.s" {1..8}
    printf "\u2502 \u2502"
    printf "\n"
@@ -256,6 +286,8 @@ fi
       printf " \u2502 \u2514"
       printf '\u2500'"%.s" {1..35}
       printf "\u2518 \u2502\n"
+
+
    done # ShaderArray end
 
 printf " \u2502"
