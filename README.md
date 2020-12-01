@@ -3,6 +3,7 @@
 
  * AMD GPU
  * RadeonSI Driver ([mesa](https://gitlab.freedesktop.org/mesa/mesa))
+ * glxinfo (mesa-utils)
 
 ## Result Example
 
@@ -22,6 +23,7 @@ TMUs (Texture Mapping Units):	64 TMU
 Peak Texture Fill-Rate:		76.54 GT/s
 
 VRAM Type:		GDDR5
+VRAM Size:		4096 MB
 VRAM Bit Width:		128-bit
 Peak Memory Clock:	1750 MHz
 Peak VRAM Bandwidth:	112 GB/s
@@ -42,7 +44,7 @@ L2 Cache Size:		1 MB (1024 KB)
  │ │   ════  ════  CU(5)  ════  ════   │ │
  │ │   ════  ════  CU(6)  ════  ════   │ │
  │ │   ════  ════  CU(7)  ════  ════   │ │
- │ │   [-RB-]  [-RB-]                  │ │
+ │ │   [ RB ]  [ RB ]                  │ │
  │ │  [- Rasterizer /Primitive Unit -] │ │
  │ └───────────────────────────────────┘ │
  │        [- Geometry Processor -]       │
@@ -57,12 +59,11 @@ L2 Cache Size:		1 MB (1024 KB)
  │ │   ════  ════  CU(5)  ════  ════   │ │
  │ │   ════  ════  CU(6)  ════  ════   │ │
  │ │   ════  ════  CU(7)  ════  ════   │ │
- │ │   [-RB-]  [-RB-]                  │ │
+ │ │   [ RB ]  [ RB ]                  │ │
  │ │  [- Rasterizer /Primitive Unit -] │ │
  │ └───────────────────────────────────┘ │
  │        [- Geometry Processor -]       │
  └───────────────────────────────────────┘
-[ L2$ 256K ]  [ L2$ 256K ]  [ L2$ 256K ]  [ L2$ 256K ]
-
+[L2$ 256K] [L2$ 256K] [L2$ 256K] [L2$ 256K] 
 ```
 
