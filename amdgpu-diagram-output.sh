@@ -1,5 +1,4 @@
 #!/bin/bash
-
 IFS=''
 GPUINFO="$(env AMD_DEBUG=info glxinfo -B)"
 shopt -s expand_aliases
@@ -19,26 +18,27 @@ amdgpu_var "CARD_NAME" "marketing_name"
 amdgpu_var "GPU_FAMILY" "family"
 amdgpu_var "MAX_SE" "max_se"
 
-if [ $(echo ${GPUINFO} | grep "max_sh_per_se"; echo $?) -eq 0 ];then
-   amdgpu_var "SA_PER_SE" "max_sh_per_se"
-else
+if [ $(echo ${GPUINFO} | grep "max_sa_per_se" &> /dev/null ; echo $?) -eq 0 ];then
    amdgpu_var "SA_PER_SE" "max_sa_per_se"
+else
+   amdgpu_var "SA_PER_SE" "max_sh_per_se"
 fi
 
 amdgpu_var "CU_PER_SA" "max_good_cu_per_sa"
 amdgpu_var "MIN_CU_PER_SA" "min_good_cu_per_sa"
 amdgpu_var "MAX_SHADER_CLOCK" "max_shader_clock"
 
-if [ $(echo ${GPUINFO} | grep "num_render_backends"; echo $?) -eq 0 ];then
-   amdgpu_var "NUM_RB" "num_render_backends"
-else
+if [ $(echo ${GPUINFO} | grep "max_render_backends" &> /dev/null ; echo $?) -eq 0 ];then
    amdgpu_var "NUM_RB" "max_render_backends"
+else
+   amdgpu_var "NUM_RB" "num_render_backends"
 fi
 
 amdgpu_var "L2_CACHE" "l2_cache_size"
 amdgpu_var "NUM_L2_CACHE_BLOCK" "num_tcc_blocks"
-amdgpu_var "VRAM_BIT_WIDTH" "vram_bit_width"
 amdgpu_var "VRAM_TYPE" "vram_type"
+amdgpu_var "VRAM_BIT_WIDTH" "vram_bit_width"
+amdgpu_var "VRAM_MAX_SIZE" "vram_size"
 amdgpu_var "MEMORY_CLOCK" "max_memory_clock"
 
 amdgpu_var "RB_PLUS" "rbplus_allowed"
@@ -55,7 +55,7 @@ debug_amdgpu_spec() {
 
    export MAX_SHADER_CLOCK="2000"
    export NUM_RB="16"
-   export L2_CACHE="$(echo "4096 * 1024" | bc)"
+   export L2_CACHE="$(( 4096 * 1024 ))"
    export NUM_L2_CACHE_BLOCK="16"
    export VRAM_BIT_WIDTH="256"
    export VRAM_TYPE="9"
@@ -157,6 +157,7 @@ case ${VRAM_TYPE} in
 esac
 
 echo "VRAM Type:\t\t${VRAM_MODULE}"
+echo "VRAM Size:\t\t${VRAM_MAX_SIZE}"
 
 echo "VRAM Bit Width:\t\t${VRAM_BIT_WIDTH}-bit"
 echo "Peak Memory Clock:\t${MEMORY_CLOCK} MHz"
@@ -164,13 +165,13 @@ echo "Peak Memory Clock:\t${MEMORY_CLOCK} MHz"
 if [ ${VRAM_TYPE} -le 2 ] || [ ${VRAM_TYPE} -eq 4 ];then
    VRAM_MBW="Unknown"
 else
-   VRAM_MBW="$(echo " ${VRAM_BIT_WIDTH} / 8 * ${DATA_RATE} / 1000" | bc) GB/s"
+   VRAM_MBW="$(( ${VRAM_BIT_WIDTH} / 8 * ${DATA_RATE} / 1000 )) GB/s"
 fi
 
 echo "Peak VRAM Bandwidth:\t${VRAM_MBW}\n"
 
 echo "L2 Cache Blocks:\t${NUM_L2_CACHE_BLOCK} Block"
-echo "L2 Cache Size:\t\t$(echo "${L2_CACHE} / 1024 / 1024" | bc ) MB ($(echo "${L2_CACHE} / 1024" | bc) KB)"
+echo "L2 Cache Size:\t\t$(( ${L2_CACHE} / 1024 / 1024 )) MB ($(( ${L2_CACHE} / 1024 )) KB)"
 
 printf "\n\n"
 
@@ -266,12 +267,12 @@ RBF="${RB_PER_SE}"
 #      printf "\n"
 
 
-RDNA_L1C_SIZE="128KB"
+RDNA_L1C_SIZE="128"
 
-if [ ${GPU_FAMILY} -ge 77 ];then
+if [ ${GPU_FAMILY} -ge 74 ];then
    printf " \u2502 \u2502"
    printf ' '"%.s" {1..10}
-   printf "[-  L1$ ${RDNA_L1C_SIZE}  -]"
+   printf "[-  L1$ ${RDNA_L1C_SIZE}KB  -]"
    printf ' '"%.s" {1..8}
    printf "\u2502 \u2502"
    printf "\n"
@@ -320,7 +321,7 @@ case ${GPU_ASIC} in
    *)
 esac
 
-L2C_SIZE="$(echo "${L2_CACHE} / ${NUM_L2_CACHE_BLOCK} / 1024" | bc )K"
+L2C_SIZE="$(( ${L2_CACHE} / ${NUM_L2_CACHE_BLOCK} / 1024 ))K"
 L2CBF="${NUM_L2_CACHE_BLOCK}"
 
 while [ ${L2CBF} -gt 0 ]
@@ -334,7 +335,7 @@ do
 
    for (( l2c=0; l2c<${L2CB_TMP}; l2c++ ))
    do
-      printf "[ L2$ ${L2C_SIZE} ]  "
+      printf "[L2$ ${L2C_SIZE}] "
    done
       printf "\n"
 
