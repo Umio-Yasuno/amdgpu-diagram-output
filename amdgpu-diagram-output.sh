@@ -43,6 +43,8 @@ amdgpu_var "MEMORY_CLOCK" "max_memory_clock"
 
 amdgpu_var "RB_PLUS" "rbplus_allowed"
 
+MESA_DRIVER_VER="$(echo ${GPUINFO} | grep "OpenGL core profile version" | sed -e "s/^.*Core\ Profile)\ //g")"
+
 debug_amdgpu_spec() {
    export GPU_ASIC="NAVI10"
    export CARD_NAME="Navi10 Card"
@@ -64,11 +66,27 @@ debug_amdgpu_spec() {
    export RB_PLUS="0"
 }
 
-if [ ${1} ] && [ ${1} = "--debug" ];then
+for opt in ${@};
+do
+   case ${opt} in
+      "-d")
+         DEBUG_SPEC="1"
+         ;;
+      "-n")
+         NO_DIAGRAM="1"
+         ;;
+      *)
+         echo "error"
+         exit 1
+   esac
+done
+
+if [ ${DEBUG_SPEC} == 1 ];then
    debug_amdgpu_spec
 fi
 
 echo
+echo "Driver Version:\t\t${MESA_DRIVER_VER}\n"
 
 echo "GPU ASIC:\t\t${GPU_ASIC}"
 echo "Marketing Name:\t\t${CARD_NAME}\n"
@@ -171,9 +189,12 @@ fi
 echo "Peak VRAM Bandwidth:\t${VRAM_MBW}\n"
 
 echo "L2 Cache Blocks:\t${NUM_L2_CACHE_BLOCK} Block"
-echo "L2 Cache Size:\t\t$(( ${L2_CACHE} / 1024 / 1024 )) MB ($(( ${L2_CACHE} / 1024 )) KB)"
+echo "L2 Cache Size:\t\t$(( ${L2_CACHE} / 1024 / 1024 )) MB ($(( ${L2_CACHE} / 1024 )) KB)\n"
 
-printf "\n\n"
+
+amdgpu_diagram_draw () {
+
+printf "\n"
 
 echo "## AMD GPU Diagram\n"
 
@@ -344,3 +365,8 @@ do
 done # L2cache end
 
 echo
+}
+
+if [ ${NO_DIAGRAM} != 1 ];then
+   amdgpu_diagram_draw
+fi
