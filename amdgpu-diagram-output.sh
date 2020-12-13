@@ -66,6 +66,9 @@ debug_amdgpu_spec() {
    export RB_PLUS="0"
 }
 
+DEBUG_SPEC="0"
+NO_DIAGRAM="0"
+
 for opt in ${@};
 do
    case ${opt} in
@@ -75,9 +78,6 @@ do
       "-n")
          NO_DIAGRAM="1"
          ;;
-      *)
-         echo "error"
-         exit 1
    esac
 done
 
@@ -367,6 +367,6 @@ done # L2cache end
 echo
 }
 
-if [ ${NO_DIAGRAM} != 1 ];then
+if [ ${NO_DIAGRAM} != "1" ];then
    amdgpu_diagram_draw
 fi
