@@ -6,7 +6,8 @@ alias echo="echo -e"
 
 # echo ${GPUINFO}
 
-amdgpu_var() {
+amdgpu_var () {
+   export ${1}=0
    export ${1}="$( echo ${GPUINFO} | grep " ${2} =" | sed -e "s/^.*${2}\ \=\ //g" )"
 
 #   debug
@@ -18,7 +19,7 @@ amdgpu_var "CARD_NAME" "marketing_name"
 amdgpu_var "GPU_FAMILY" "family"
 amdgpu_var "MAX_SE" "max_se"
 
-if [ $(echo ${GPUINFO} | grep "max_sa_per_se" &> /dev/null ; echo $?) -eq 0 ];then
+if [ $(echo ${GPUINFO} | grep "max_sa_per_se" &> /dev/null ; echo $?) -eq 0 ]; then
    amdgpu_var "SA_PER_SE" "max_sa_per_se"
 else
    amdgpu_var "SA_PER_SE" "max_sh_per_se"
@@ -28,7 +29,7 @@ amdgpu_var "CU_PER_SA" "max_good_cu_per_sa"
 amdgpu_var "MIN_CU_PER_SA" "min_good_cu_per_sa"
 amdgpu_var "MAX_SHADER_CLOCK" "max_shader_clock"
 
-if [ $(echo ${GPUINFO} | grep "max_render_backends" &> /dev/null ; echo $?) -eq 0 ];then
+if [ $(echo ${GPUINFO} | grep "max_render_backends" &> /dev/null ; echo $?) -eq 0 ]; then
    amdgpu_var "NUM_RB" "max_render_backends"
 else
    amdgpu_var "NUM_RB" "num_render_backends"
@@ -43,9 +44,14 @@ amdgpu_var "MEMORY_CLOCK" "max_memory_clock"
 
 amdgpu_var "RB_PLUS" "rbplus_allowed"
 
+amdgpu_var "VRAM_VIS_SIZE" "vram_vis_size"
+amdgpu_var "VRAM_ALL_VIS" "all_vram_visible"
+amdgpu_var "DEDICATED_VRAM" "has_dedicated_vram"
+
+PCIBUS="/sys/bus/pci/devices/$(echo ${GPUINFO} | grep "pci (domain:bus:dev.func)" | sed -e "s/^.*func):\ //g")"
 MESA_DRIVER_VER="$(echo ${GPUINFO} | grep "OpenGL core profile version" | sed -e "s/^.*Core\ Profile)\ //g")"
 
-debug_amdgpu_spec() {
+_debug_spec_func() {
    export GPU_ASIC="NAVI10"
    export CARD_NAME="Navi10 Card"
    export GPU_FAMILY="74"
@@ -69,137 +75,133 @@ debug_amdgpu_spec() {
 DEBUG_SPEC="0"
 NO_DIAGRAM="0"
 
-for opt in ${@};
-do
+for opt in ${@}; do
    case ${opt} in
       "-d")
-         DEBUG_SPEC="1"
-         ;;
+         DEBUG_SPEC="1" ;;
       "-n")
-         NO_DIAGRAM="1"
-         ;;
+         NO_DIAGRAM="1" ;;
    esac
 done
 
-if [ ${DEBUG_SPEC} == 1 ];then
-   debug_amdgpu_spec
+if [ ${DEBUG_SPEC} == 1 ]; then
+   _debug_spec_func
 fi
 
-echo
-echo "Driver Version:\t\t${MESA_DRIVER_VER}\n"
+if [ ${DEDICATED_VRAM} == 1 ]; then
+   GPU_TYPE="Discrete GPU"
+else
+   GPU_TYPE="APU"
+fi
 
-echo "GPU ASIC:\t\t${GPU_ASIC}"
-echo "Marketing Name:\t\t${CARD_NAME}\n"
+echo "\n\
+Driver Version:\t\t${MESA_DRIVER_VER}\n\n\
+GPU ASIC:\t\t${GPU_ASIC}\n\
+Marketing Name:\t\t${CARD_NAME}\n\
+GPU Type:\t\t${GPU_TYPE}\n\
+"
 
-if [ ${GPU_FAMILY} -ge 74 ] && [ ${CU_PER_SA} != ${MIN_CU_PER_SA} ];then
+if [ ${GPU_FAMILY} -ge 74 ] && [ ${CU_PER_SA} != ${MIN_CU_PER_SA} ]; then
    NUM_CU="$(( ${MAX_SE} * (${CU_PER_SA} + ${MIN_CU_PER_SA}) * 2 ))"
 else
    NUM_CU="$(( ${MAX_SE} * ${SA_PER_SE} * ${CU_PER_SA} ))"
 fi
 
-if [ ${GPU_FAMILY} -ge 74 ];then
+if [ ${GPU_FAMILY} -ge 74 ]; then
    echo "WorkGroup Processors:\t$(( ${NUM_CU} / 2)) WGP (${NUM_CU} CU)"
 else 
    echo "Compute Units:\t\t${NUM_CU} CU"
 fi
 
-echo "Peak GFX Clock:\t\t${MAX_SHADER_CLOCK} MHz"
-
-echo
+echo "\
+Peak GFX Clock:\t\t${MAX_SHADER_CLOCK} MHz\n\
+GFX Clock Range:\t$(head -n1 ${PCIBUS}/pp_dpm_sclk | sed -E "s/(^0:\ |Mhz.*$)//g") - $(tail -n1 ${PCIBUS}/pp_dpm_sclk | sed -E "s/(^.*:\ |Mhz.*$)//g") MHz\n\
+"
 
 #  https://gitlab.freedesktop.org/mesa/mesa/-/blob/master/src/amd/common/amd_family.h
 
-if [ ${GPU_FAMILY} -ge 67 ];then
-   echo "Peak FP16 (Packed):\t$(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000 * 2" | bc ) TFlops"
+if [ ${GPU_FAMILY} -ge 67 ]; then
+   echo "Peak FP16 (Packed):\t\t$(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000 * 2" | bc ) TFlops"
 fi
 
-echo "Peak FP32:\t\t$(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000" | bc ) TFlops\n"
+echo "Peak FP32:\t\t\t $(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000" | bc ) TFlops\n"
 
-if [ ${RB_PLUS} == 0 ];then
-   echo "RBs (Render Backends):\t${NUM_RB} RB ($(( ${NUM_RB} * 4 )) ROP)"
+if [ ${RB_PLUS} == 0 ]; then
+   echo "RBs (Render Backends):\t\t${NUM_RB} RB ($(( ${NUM_RB} * 4 )) ROP)"
 else
-   echo "RBs (Render Backends):\t${NUM_RB} RB+ ($(( ${NUM_RB} * 8 )) ROP)"
+   echo "RBs (Render Backends):\t\t${NUM_RB} RB+ ($(( ${NUM_RB} * 8 )) ROP)"
 fi
 
-echo "Peak Pixel Fill-Rate:\t$(echo "scale=2;${NUM_RB} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc ) GP/s\n"
-
-echo "TMUs (Texture Mapping Units):\t$(( ${NUM_CU} * 4 )) TMU"
-echo "Peak Texture Fill-Rate:\t\t$(echo "scale=2;${NUM_CU} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc) GT/s\n"
+echo "\
+Peak Pixel Fill-Rate:\t\t$(echo "scale=2;${NUM_RB} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc ) GP/s\n\
+TMUs (Texture Mapping Units):\t$(( ${NUM_CU} * 4 )) TMU\n\
+Peak Texture Fill-Rate:\t\t$(echo "scale=2;${NUM_CU} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc) GT/s\n\
+"
 
 #  https://gitlab.freedesktop.org/mesa/drm/-/blob/2420768d023e0c257d2752a5c212d5dd3528a249/include/drm/amdgpu_drm.h#L938
 #  https://cgit.freedesktop.org/~agd5f/linux/commit/drivers/gpu/drm/amd?h=amd-staging-drm-next&id=a01dd4fe8e62b18a16edccda840361c022940125
 
 case ${VRAM_TYPE} in
-   1)
-      VRAM_MODULE="GDDR1"
-      ;;
-   2)
-      VRAM_MODULE="DDR2"
-      ;;
-   3)
-      #  GDDR3
+   1) #  GDDR1
+      VRAM_MODULE="GDDR1" ;;
+   2) #  DDR2
+      VRAM_MODULE="DDR2" ;;
+   3) #  GDDR3
       VRAM_MODULE="GDDR3"
-      DATA_RATE="$(( ${MEMORY_CLOCK} * 2 ))"
-      ;;
+      DATA_RATE="$(( ${MEMORY_CLOCK} * 2 ))" ;;
    4)
-      VRAM_MODULE="GDDR4"
-      ;;
-   5)
-      #  GDDR5
+      VRAM_MODULE="GDDR4" ;;
+   5) #  GDDR5
       VRAM_MODULE="GDDR5"
-      DATA_RATE="$(( ${MEMORY_CLOCK} * 4 ))"
-      ;;
-   6)
-      #  HBM/2
+      DATA_RATE="$(( ${MEMORY_CLOCK} * 4 ))" ;;
+   6) #  HBM/2
       VRAM_MODULE="HBM"
-      DATA_RATE="$(( ${MEMORY_CLOCK} * 2 ))"
-      ;;
-   9)
-      #  GDDR6
+      DATA_RATE="$(( ${MEMORY_CLOCK} * 2 ))" ;;
+   9) #  GDDR6
       VRAM_MODULE="GDDR6"
-      DATA_RATE="$(( ${MEMORY_CLOCK} * 2 * 8 ))"
-      ;;
-   7)
-      #  DDR3/4
+      DATA_RATE="$(( ${MEMORY_CLOCK} * 2 * 8 ))" ;;
+   7) #  DDR3/4
       VRAM_MODULE="DDR3"
-      DATA_RATE="$(( ${MEMORY_CLOCK} ))"
-      ;;
-   8)
-      #  DDR3/4
+      DATA_RATE="$(( ${MEMORY_CLOCK} ))" ;;
+   8) #  DDR3/4
       VRAM_MODULE="DDR4"
-      DATA_RATE="$(( ${MEMORY_CLOCK} ))"
-      ;;
+      DATA_RATE="$(( ${MEMORY_CLOCK} ))" ;;
    0|*)
-      VRAM_MODULE="Unknown"
-      ;;
+      VRAM_MODULE="Unknown" ;;
 esac
 
-echo "VRAM Type:\t\t${VRAM_MODULE}"
-echo "VRAM Size:\t\t${VRAM_MAX_SIZE}"
+echo "\
+VRAM Type:\t\t${VRAM_MODULE}\n\
+VRAM Size:\t\t${VRAM_MAX_SIZE}\n\
+VRAM Bit Width:\t\t${VRAM_BIT_WIDTH}-bit\n\
+Peak Memory Clock:\t${MEMORY_CLOCK} MHz\
+"
 
-echo "VRAM Bit Width:\t\t${VRAM_BIT_WIDTH}-bit"
-echo "Peak Memory Clock:\t${MEMORY_CLOCK} MHz"
-
-if [ ${VRAM_TYPE} -le 2 ] || [ ${VRAM_TYPE} -eq 4 ];then
+if [ ${VRAM_TYPE} -le 2 ] || [ ${VRAM_TYPE} -eq 4 ]; then
    VRAM_MBW="Unknown"
 else
    VRAM_MBW="$(( ${VRAM_BIT_WIDTH} / 8 * ${DATA_RATE} / 1000 )) GB/s"
 fi
 
-echo "Peak VRAM Bandwidth:\t${VRAM_MBW}\n"
+echo "\
+Peak VRAM Bandwidth:\t${VRAM_MBW}\n\
+Memory Clock Range:\t$(head -n1 ${PCIBUS}/pp_dpm_mclk | sed -E "s/(^0:\ |Mhz.*$)//g") - $(tail -n1 ${PCIBUS}/pp_dpm_mclk | sed -E "s/(^.*:\ |Mhz.*$)//g") MHz\n\
+"
 
-echo "L2 Cache Blocks:\t${NUM_L2_CACHE_BLOCK} Block"
-echo "L2 Cache Size:\t\t$(( ${L2_CACHE} / 1024 / 1024 )) MB ($(( ${L2_CACHE} / 1024 )) KB)\n"
+echo "\
+L2 Cache Blocks:\t${NUM_L2_CACHE_BLOCK} Block\n\
+L2 Cache Size:\t\t$(( ${L2_CACHE} / 1024 / 1024 )) MB ($(( ${L2_CACHE} / 1024 )) KB)\n\
+"
 
+if [ ${VRAM_MAX_SIZE} == ${VRAM_VIS_SIZE} ] || [ ${VRAM_ALL_VIS} == 1 ]; then
+   echo "AMD Smart Access Memory\n"
+fi
 
-amdgpu_diagram_draw () {
+_diagram_draw_func () {
 
-printf "\n"
+echo "\n## AMD GPU Diagram\n"
 
-echo "## AMD GPU Diagram\n"
-
-for (( se=0; se<${MAX_SE}; se++ ))
-do
+for (( se=0; se<${MAX_SE}; se++ )); do
 
    printf " \u250C\u2500 ShaderEngine(${se})  "
    printf '\u2500\u2500'"%.s" {1..10}
@@ -208,8 +210,7 @@ do
 #      printf " \u2502"
 #      printf ' '"%.s" {1..39}
 #      printf "\u2502\n"
-   for (( sh=0; sh<${SA_PER_SE}; sh++ ))
-   do
+   for (( sh=0; sh<${SA_PER_SE}; sh++ )); do
 
       printf " \u2502 \u250C\u2500 ShaderArray(${sh}) "
       printf '\u2500\u2500'"%.s" {1..9}
@@ -217,13 +218,12 @@ do
 
       TMP_CU="${CU_PER_SA}"
 
-      if [ ${sh} == 0 ] && [ ${CU_PER_SA} != ${MIN_CU_PER_SA} ];then
+      if [ ${sh} == 0 ] && [ ${CU_PER_SA} != ${MIN_CU_PER_SA} ]; then
          TMP_CU="${MIN_CU_PER_SA}"
       fi
 
-      if [ ${GPU_FAMILY} -ge 74 ];then
-         for (( wgp=0; wgp<${TMP_CU}; wgp++ ))
-         do
+      if [ ${GPU_FAMILY} -ge 74 ]; then
+         for (( wgp=0; wgp<${TMP_CU}; wgp++ )); do
             printf " \u2502 \u2502  "
             printf '\u2550'"%.s" {1..5}
             printf " "
@@ -233,11 +233,9 @@ do
             printf " "
             printf '\u2550'"%.s" {1..5}
             printf " \u2502 \u2502\n"
-
          done
       else
-         for (( cu=0; cu<${CU_PER_SA}; cu++ ))
-         do
+         for (( cu=0; cu<${CU_PER_SA}; cu++ )); do
             printf " \u2502 \u2502"
             printf ' '"%.s" {1..3}
             printf '\u2550'"%.s" {1..4}
@@ -259,56 +257,47 @@ RBF="${RB_PER_SE}"
 
       printf "   "
 
-      while [ ${RB_PER_SA} -gt 0 ]
-      do
+      while [ ${RB_PER_SA} -gt 0 ]; do
 
-         if [ ${RB_PER_SA} -gt 4 ];then
+         if [ ${RB_PER_SA} -gt 4 ]; then
             RBTMP="4"
          else
             RBTMP="${RB_PER_SA}"
          fi
 
-         for (( rbc=0; rbc<${RBTMP}; rbc++ ))
-         do
+         for (( rbc=0; rbc<${RBTMP}; rbc++ )); do
             printf "[ RB ]"
             printf ' '"%.s" {1..2}
          done
 
-         for (( fill=${RBTMP}; fill<4; fill++ ))
-         do
+         for (( fill=${RBTMP}; fill<4; fill++ )); do
             printf ' '"%.s" {1..8}
          done
 
-         printf "\u2502 \u2502"
-         printf "\n"
+         printf "\u2502 \u2502\n"
 
          RB_PER_SA=$(( ${RB_PER_SA} - 4))
       done # RB end
 
-#      printf "\n"
-
 
 RDNA_L1C_SIZE="128"
 
-if [ ${GPU_FAMILY} -ge 74 ];then
+if [ ${GPU_FAMILY} -ge 74 ]; then
    printf " \u2502 \u2502"
    printf ' '"%.s" {1..10}
    printf "[-  L1$ ${RDNA_L1C_SIZE}KB  -]"
    printf ' '"%.s" {1..8}
-   printf "\u2502 \u2502"
-   printf "\n"
+   printf "\u2502 \u2502\n"
 fi
 
    printf " \u2502 \u2502  "
    printf "[- Rasterizer /Primitive Unit -]"
-   printf " \u2502 \u2502"
-   printf "\n"
+   printf " \u2502 \u2502\n"
 
    # ShaderArray last line
       printf " \u2502 \u2514"
       printf '\u2500'"%.s" {1..35}
       printf "\u2518 \u2502\n"
-
 
    done # ShaderArray end
 
@@ -316,13 +305,11 @@ printf " \u2502"
 printf ' '"%.s" {1..8}
 printf "[- Geometry Processor -]"
 printf ' '"%.s" {1..7}
-printf "\u2502"
-printf "\n"
+printf "\u2502\n"
 
 printf " \u2514"
 printf '\u2500'"%.s" {1..39}
-printf "\u2518"
-printf "\n"
+printf "\u2518\n"
 
 done # ShaderEngine end
 
@@ -331,42 +318,37 @@ done # ShaderEngine end
 
 case ${GPU_ASIC} in
    RAVEN2)
-      L2_CACHE="$(( 512 * 1024 ))"
-      ;;
+      L2_CACHE="$(( 512 * 1024 ))"  ;;
    RAVEN|RENOIR)
-      L2_CACHE="$(( 1024 * 1024 ))"
-      ;;
+      L2_CACHE="$(( 1024 * 1024 ))" ;;
    VEGA12|NAVI14)
-      L2_CACHE="$(( 2048 * 1024 ))"
-      ;;
+      L2_CACHE="$(( 2048 * 1024 ))" ;;
    *)
 esac
 
-L2C_SIZE="$(( ${L2_CACHE} / ${NUM_L2_CACHE_BLOCK} / 1024 ))K"
+L2C_SIZE="$(( ${L2_CACHE} / ${NUM_L2_CACHE_BLOCK} / 1024 ))"
 L2CBF="${NUM_L2_CACHE_BLOCK}"
 
-while [ ${L2CBF} -gt 0 ]
-do
+while [ ${L2CBF} -gt 0 ]; do
 
-   if [ ${L2CBF} -gt 4 ];then
+   if [ ${L2CBF} -gt 4 ]; then
       L2CB_TMP="4"
    else
       L2CB_TMP="${L2CBF}"
    fi
 
-   for (( l2c=0; l2c<${L2CB_TMP}; l2c++ ))
-   do
-      printf "[L2$ ${L2C_SIZE}] "
+   for (( l2c=0; l2c<${L2CB_TMP}; l2c++ )); do
+      printf "[L2$ ${L2C_SIZE}K] "
    done
       printf "\n"
 
    L2CBF="$(( ${L2CBF} - 4 ))"
 
 done # L2cache end
-
-echo
 }
 
-if [ ${NO_DIAGRAM} != "1" ];then
-   amdgpu_diagram_draw
+if [ ${NO_DIAGRAM} != 1 ]; then
+   _diagram_draw_func
 fi
+
+echo
