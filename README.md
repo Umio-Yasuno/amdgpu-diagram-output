@@ -8,17 +8,20 @@
 ## Result Example
 
 ```
+Driver Version:		Mesa 21.0.0-devel (git-eec9d67e44)
+
 GPU ASIC:		POLARIS11
 Marketing Name:		Radeon RX 560 Series
+GPU Type:		Discrete GPU
 
 Compute Units:		16 CU
 Peak GFX Clock:		1196 MHz
+GFX Clock Range:	214 - 1080 MHz
 
-Peak FP32:		2.44 TFlops
+Peak FP32:			 2.44 TFlops
 
-RBs (Render Backends):	4 RB (16 ROP)
-Peak Pixel Fill-Rate:	19.13 GP/s
-
+RBs (Render Backends):		4 RB (16 ROP)
+Peak Pixel Fill-Rate:		19.13 GP/s
 TMUs (Texture Mapping Units):	64 TMU
 Peak Texture Fill-Rate:		76.54 GT/s
 
@@ -27,9 +30,12 @@ VRAM Size:		4096 MB
 VRAM Bit Width:		128-bit
 Peak Memory Clock:	1750 MHz
 Peak VRAM Bandwidth:	112 GB/s
+Memory Clock Range:	300 - 1750 MHz
 
 L2 Cache Blocks:	4 Block
 L2 Cache Size:		1 MB (1024 KB)
+
+AMD Smart Access Memory
 
 
 ## AMD GPU Diagram
@@ -65,5 +71,5 @@ L2 Cache Size:		1 MB (1024 KB)
  │        [- Geometry Processor -]       │
  └───────────────────────────────────────┘
 [L2$ 256K] [L2$ 256K] [L2$ 256K] [L2$ 256K] 
-```
 
+```
