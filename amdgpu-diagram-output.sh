@@ -72,6 +72,9 @@ _debug_spec_func() {
    export RB_PLUS="0"
 }
 
+VRAM_MAX_SIZE="$(echo ${VRAM_MAX_SIZE} | sed -e "s/\ MB//g")"
+VRAM_VIS_SIZE="$(echo ${VRAM_VIS_SIZE} | sed -e "s/\ MB//g")"
+
 DEBUG_SPEC="0"
 NO_DIAGRAM="0"
 
@@ -108,35 +111,37 @@ else
 fi
 
 if [ ${GPU_FAMILY} -ge 74 ]; then
-   echo "WorkGroup Processors:\t$(( ${NUM_CU} / 2)) WGP (${NUM_CU} CU)"
+   printf "WorkGroup Processors:\t %3d WGP (%d CU)\n" $(( ${NUM_CU} / 2)) ${NUM_CU}
 else 
-   echo "Compute Units:\t\t${NUM_CU} CU"
+   printf "Compute Units:\t\t%4d CU\n" ${NUM_CU}
 fi
 
-echo "\
-Peak GFX Clock:\t\t${MAX_SHADER_CLOCK} MHz\n\
-GFX Clock Range:\t$(head -n1 ${PCIBUS}/pp_dpm_sclk | sed -E "s/(^0:\ |Mhz.*$)//g") - $(tail -n1 ${PCIBUS}/pp_dpm_sclk | sed -E "s/(^.*:\ |Mhz.*$)//g") MHz\n\
-"
+printf "\
+GFX Clock Range:\t%4d MHz - %4d MHz\n\
+Peak GFX Clock:\t\t%4d MHz\n\
+\n" $(head -n1 ${PCIBUS}/pp_dpm_sclk | sed -E "s/(^0:\ |Mhz.*$)//g") $(tail -n1 ${PCIBUS}/pp_dpm_sclk | sed -E "s/(^.*:\ |Mhz.*$)//g") ${MAX_SHADER_CLOCK}
 
 #  https://gitlab.freedesktop.org/mesa/mesa/-/blob/master/src/amd/common/amd_family.h
 
 if [ ${GPU_FAMILY} -ge 67 ]; then
-   echo "Peak FP16 (Packed):\t\t$(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000 * 2" | bc ) TFlops"
+   printf "Peak FP16 (Packed):\t%5.2f TFlops\n" $(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000 * 2" | bc )
+else
+   printf "Peak FP16:\t\t%5.2f TFlops\n" $(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000" | bc )
 fi
 
-echo "Peak FP32:\t\t\t $(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000" | bc ) TFlops\n"
+printf "Peak FP32:\t\t%5.2f TFlops\n\n" $(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000" | bc )
 
 if [ ${RB_PLUS} == 0 ]; then
-   echo "RBs (Render Backends):\t\t${NUM_RB} RB ($(( ${NUM_RB} * 4 )) ROP)"
+   printf "RBs (Render Backends):\t\t%3d RB (%d ROP)\n" ${NUM_RB} $(( ${NUM_RB} * 4 ))
 else
-   echo "RBs (Render Backends):\t\t${NUM_RB} RB+ ($(( ${NUM_RB} * 8 )) ROP)"
+   printf "RBs (Render Backends):\t\t%3d RB+ (%d ROP)" ${NUM_RB} $(( ${NUM_RB} * 8 ))
 fi
 
-echo "\
-Peak Pixel Fill-Rate:\t\t$(echo "scale=2;${NUM_RB} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc ) GP/s\n\
-TMUs (Texture Mapping Units):\t$(( ${NUM_CU} * 4 )) TMU\n\
-Peak Texture Fill-Rate:\t\t$(echo "scale=2;${NUM_CU} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc) GT/s\n\
-"
+printf "\
+Peak Pixel Fill-Rate:\t\t%6.2f GP/s\n\
+TMUs (Texture Mapping Units):\t%3d TMU\n\
+Peak Texture Fill-Rate:\t\t%6.2f GT/s\n\n\
+" $(echo "scale=2;${NUM_RB} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc ) $(( ${NUM_CU} * 4 )) $(echo "scale=2;${NUM_CU} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc)
 
 #  https://gitlab.freedesktop.org/mesa/drm/-/blob/2420768d023e0c257d2752a5c212d5dd3528a249/include/drm/amdgpu_drm.h#L938
 #  https://cgit.freedesktop.org/~agd5f/linux/commit/drivers/gpu/drm/amd?h=amd-staging-drm-next&id=a01dd4fe8e62b18a16edccda840361c022940125
@@ -170,28 +175,28 @@ case ${VRAM_TYPE} in
       VRAM_MODULE="Unknown" ;;
 esac
 
-echo "\
-VRAM Type:\t\t${VRAM_MODULE}\n\
-VRAM Size:\t\t${VRAM_MAX_SIZE}\n\
-VRAM Bit Width:\t\t${VRAM_BIT_WIDTH}-bit\n\
-Peak Memory Clock:\t${MEMORY_CLOCK} MHz\
-"
+printf "\
+VRAM Type:\t\t%9s\n\
+VRAM Size:\t\t%6d MB\n\
+VRAM Bit Width:\t\t%6d-bit\n\
+" ${VRAM_MODULE} ${VRAM_MAX_SIZE} ${VRAM_BIT_WIDTH}
 
 if [ ${VRAM_TYPE} -le 2 ] || [ ${VRAM_TYPE} -eq 4 ]; then
    VRAM_MBW="Unknown"
 else
-   VRAM_MBW="$(( ${VRAM_BIT_WIDTH} / 8 * ${DATA_RATE} / 1000 )) GB/s"
+   VRAM_MBW="$(( ${VRAM_BIT_WIDTH} / 8 * ${DATA_RATE} / 1000 ))"
 fi
 
-echo "\
-Peak VRAM Bandwidth:\t${VRAM_MBW}\n\
-Memory Clock Range:\t$(head -n1 ${PCIBUS}/pp_dpm_mclk | sed -E "s/(^0:\ |Mhz.*$)//g") - $(tail -n1 ${PCIBUS}/pp_dpm_mclk | sed -E "s/(^.*:\ |Mhz.*$)//g") MHz\n\
-"
+printf "\
+Memory Clock Range:\t%6d MHz - %4d MHz\n\
+Peak Memory Clock:\t%6d MHz\n\
+Peak VRAM Bandwidth:\t%9.2f GB/s\n\
+\n" $(head -n1 ${PCIBUS}/pp_dpm_mclk | sed -E "s/(^0:\ |Mhz.*$)//g") $(tail -n1 ${PCIBUS}/pp_dpm_mclk | sed -E "s/(^.*:\ |Mhz.*$)//g") ${MEMORY_CLOCK} ${VRAM_MBW}
 
-echo "\
-L2 Cache Blocks:\t${NUM_L2_CACHE_BLOCK} Block\n\
-L2 Cache Size:\t\t$(( ${L2_CACHE} / 1024 / 1024 )) MB ($(( ${L2_CACHE} / 1024 )) KB)\n\
-"
+printf "\
+L2 Cache Blocks:\t%3d Block\n\
+L2 Cache Size:\t\t%3d MB (%d KB)\n\n\
+" ${NUM_L2_CACHE_BLOCK} $(( ${L2_CACHE} / 1024 / 1024 )) $(( ${L2_CACHE} / 1024 ))
 
 if [ ${VRAM_MAX_SIZE} == ${VRAM_VIS_SIZE} ] || [ ${VRAM_ALL_VIS} == 1 ]; then
    echo "AMD Smart Access Memory\n"
@@ -207,9 +212,6 @@ for (( se=0; se<${MAX_SE}; se++ )); do
    printf -- '--'"%.s" {1..10}
    printf "+\n"
 
-#      printf " |"
-#      printf ' '"%.s" {1..39}
-#      printf "|\n"
    for (( sh=0; sh<${SA_PER_SE}; sh++ )); do
 
       printf " | "
@@ -228,11 +230,11 @@ for (( se=0; se<${MAX_SE}; se++ )); do
 
       if [ ${GPU_FAMILY} -ge 74 ]; then
          for (( wgp=0; wgp<${TMP_CU}; wgp++ )); do
-            printf " | |  "
+            printf " | | "
             printf '='"%.s" {1..5}
             printf " "
             printf '='"%.s" {1..5}
-            printf "  WGP(${wgp})  "
+            printf "  WGP(%2d)  " ${wgp}
             printf '='"%.s" {1..5}
             printf " "
             printf '='"%.s" {1..5}
@@ -240,19 +242,15 @@ for (( se=0; se<${MAX_SE}; se++ )); do
          done
       else
          for (( cu=0; cu<${CU_PER_SA}; cu++ )); do
-            printf " | |"
-#            printf ' '"%.s" {1..2}
-            printf "   "
+            printf " | |  "
             printf '='"%.s" {1..4}
             printf "  "
             printf '='"%.s" {1..4}
-            printf "  CU(${cu})  "
+            printf "  CU(%02d)  " ${cu}
             printf '='"%.s" {1..4}
             printf "  "
             printf '='"%.s" {1..4}
-#            printf ' '"%.s" {1..3}
-            printf "   "
-            printf "| |\n"
+            printf "   | |\n"
          done
       fi
          printf " | |"
@@ -351,10 +349,10 @@ while [ ${L2CBF} -gt 0 ]; do
    L2CBF="$(( ${L2CBF} - 4 ))"
 
 done # L2cache end
+
+echo
 }
 
 if [ ${NO_DIAGRAM} != 1 ]; then
    _diagram_draw_func
 fi
-
-echo
