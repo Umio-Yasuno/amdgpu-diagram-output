@@ -203,18 +203,22 @@ echo "\n## AMD GPU Diagram\n"
 
 for (( se=0; se<${MAX_SE}; se++ )); do
 
-   printf " \u250C\u2500 ShaderEngine(${se})  "
-   printf '\u2500\u2500'"%.s" {1..10}
-   printf "\u2510\n"
+   printf " +- ShaderEngine(${se}) -"
+   printf -- '--'"%.s" {1..10}
+   printf "+\n"
 
-#      printf " \u2502"
+#      printf " |"
 #      printf ' '"%.s" {1..39}
-#      printf "\u2502\n"
+#      printf "|\n"
    for (( sh=0; sh<${SA_PER_SE}; sh++ )); do
 
-      printf " \u2502 \u250C\u2500 ShaderArray(${sh}) "
-      printf '\u2500\u2500'"%.s" {1..9}
-      printf "\u2510 \u2502\n"
+      printf " | "
+      printf -- ' '"%.s" {1..37}
+      printf " | "
+      printf "\n"
+      printf " | +- ShaderArray(${sh}) "
+      printf -- '--'"%.s" {1..9}
+      printf "+ |\n"
 
       TMP_CU="${CU_PER_SA}"
 
@@ -224,32 +228,34 @@ for (( se=0; se<${MAX_SE}; se++ )); do
 
       if [ ${GPU_FAMILY} -ge 74 ]; then
          for (( wgp=0; wgp<${TMP_CU}; wgp++ )); do
-            printf " \u2502 \u2502  "
-            printf '\u2550'"%.s" {1..5}
+            printf " | |  "
+            printf '='"%.s" {1..5}
             printf " "
-            printf '\u2550'"%.s" {1..5}
+            printf '='"%.s" {1..5}
             printf "  WGP(${wgp})  "
-            printf '\u2550'"%.s" {1..5}
+            printf '='"%.s" {1..5}
             printf " "
-            printf '\u2550'"%.s" {1..5}
-            printf " \u2502 \u2502\n"
+            printf '='"%.s" {1..5}
+            printf " | |\n"
          done
       else
          for (( cu=0; cu<${CU_PER_SA}; cu++ )); do
-            printf " \u2502 \u2502"
-            printf ' '"%.s" {1..3}
-            printf '\u2550'"%.s" {1..4}
+            printf " | |"
+#            printf ' '"%.s" {1..2}
+            printf "   "
+            printf '='"%.s" {1..4}
             printf "  "
-            printf '\u2550'"%.s" {1..4}
+            printf '='"%.s" {1..4}
             printf "  CU(${cu})  "
-            printf '\u2550'"%.s" {1..4}
+            printf '='"%.s" {1..4}
             printf "  "
-            printf '\u2550'"%.s" {1..4}
-            printf ' '"%.s" {1..3}
-            printf "\u2502 \u2502\n"
+            printf '='"%.s" {1..4}
+#            printf ' '"%.s" {1..3}
+            printf "   "
+            printf "| |\n"
          done
       fi
-         printf " \u2502 \u2502"
+         printf " | |"
 
 
 RB_PER_SA="$(( ${NUM_RB} / ${MAX_SE} / ${SA_PER_SE} ))"
@@ -274,7 +280,7 @@ RBF="${RB_PER_SE}"
             printf ' '"%.s" {1..8}
          done
 
-         printf "\u2502 \u2502\n"
+         printf "| |\n"
 
          RB_PER_SA=$(( ${RB_PER_SA} - 4))
       done # RB end
@@ -283,33 +289,33 @@ RBF="${RB_PER_SE}"
 RDNA_L1C_SIZE="128"
 
 if [ ${GPU_FAMILY} -ge 74 ]; then
-   printf " \u2502 \u2502"
+   printf " | |"
    printf ' '"%.s" {1..10}
    printf "[-  L1$ ${RDNA_L1C_SIZE}KB  -]"
    printf ' '"%.s" {1..8}
-   printf "\u2502 \u2502\n"
+   printf "| |\n"
 fi
 
-   printf " \u2502 \u2502  "
+   printf " | |  "
    printf "[- Rasterizer /Primitive Unit -]"
-   printf " \u2502 \u2502\n"
+   printf " | |\n"
 
    # ShaderArray last line
-      printf " \u2502 \u2514"
-      printf '\u2500'"%.s" {1..35}
-      printf "\u2518 \u2502\n"
+      printf " | +"
+      printf -- '-'"%.s" {1..35}
+      printf "+ |\n"
 
    done # ShaderArray end
 
-printf " \u2502"
+printf " |"
 printf ' '"%.s" {1..8}
 printf "[- Geometry Processor -]"
 printf ' '"%.s" {1..7}
-printf "\u2502\n"
+printf "|\n"
 
-printf " \u2514"
-printf '\u2500'"%.s" {1..39}
-printf "\u2518\n"
+printf " +"
+printf -- '-'"%.s" {1..39}
+printf "+\n\n"
 
 done # ShaderEngine end
 
