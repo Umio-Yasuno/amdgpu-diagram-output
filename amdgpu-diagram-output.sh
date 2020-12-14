@@ -1,10 +1,16 @@
 #!/bin/bash
 IFS=''
 GPUINFO="$(env AMD_DEBUG=info glxinfo -B)"
-shopt -s expand_aliases
-alias echo="echo -e"
 
 # echo ${GPUINFO}
+
+_repeat_printf () {
+   i=0
+   while [ ${i} -lt ${2} ]; do
+      printf -- "${1}"
+      i=$(( ${i} + 1 ))
+   done
+}
 
 amdgpu_var () {
    export ${1}=0
@@ -19,7 +25,10 @@ amdgpu_var "CARD_NAME" "marketing_name"
 amdgpu_var "GPU_FAMILY" "family"
 amdgpu_var "MAX_SE" "max_se"
 
-if [ $(echo ${GPUINFO} | grep "max_sa_per_se" &> /dev/null ; echo $?) -eq 0 ]; then
+echo ${GPUINFO} | grep -q "max_sa_per_se"
+SA_OR_SH="$(echo $?)"
+
+if [ ${SA_OR_SH} = 0 ]; then
    amdgpu_var "SA_PER_SE" "max_sa_per_se"
 else
    amdgpu_var "SA_PER_SE" "max_sh_per_se"
@@ -29,7 +38,10 @@ amdgpu_var "CU_PER_SA" "max_good_cu_per_sa"
 amdgpu_var "MIN_CU_PER_SA" "min_good_cu_per_sa"
 amdgpu_var "MAX_SHADER_CLOCK" "max_shader_clock"
 
-if [ $(echo ${GPUINFO} | grep "max_render_backends" &> /dev/null ; echo $?) -eq 0 ]; then
+echo ${GPUINFO} | grep -q "max_render_backends"
+MAX_OR_NUM=$(echo $?)
+
+if [ ${MAX_OR_NUM} = 0 ]; then
    amdgpu_var "NUM_RB" "max_render_backends"
 else
    amdgpu_var "NUM_RB" "num_render_backends"
@@ -87,22 +99,22 @@ for opt in ${@}; do
    esac
 done
 
-if [ ${DEBUG_SPEC} == 1 ]; then
+if [ ${DEBUG_SPEC} = 1 ]; then
    _debug_spec_func
 fi
 
-if [ ${DEDICATED_VRAM} == 1 ]; then
+if [ ${DEDICATED_VRAM} = 1 ]; then
    GPU_TYPE="Discrete GPU"
 else
    GPU_TYPE="APU"
 fi
 
-echo "\n\
+printf "\n\
 Driver Version:\t\t${MESA_DRIVER_VER}\n\n\
 GPU ASIC:\t\t${GPU_ASIC}\n\
 Marketing Name:\t\t${CARD_NAME}\n\
 GPU Type:\t\t${GPU_TYPE}\n\
-"
+\n"
 
 if [ ${GPU_FAMILY} -ge 74 ] && [ ${CU_PER_SA} != ${MIN_CU_PER_SA} ]; then
    NUM_CU="$(( ${MAX_SE} * (${CU_PER_SA} + ${MIN_CU_PER_SA}) * 2 ))"
@@ -131,7 +143,7 @@ fi
 
 printf "Peak FP32:\t\t%5.2f TFlops\n\n" $(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000" | bc )
 
-if [ ${RB_PLUS} == 0 ]; then
+if [ ${RB_PLUS} = 0 ]; then
    printf "RBs (Render Backends):\t\t%3d RB (%d ROP)\n" ${NUM_RB} $(( ${NUM_RB} * 4 ))
 else
    printf "RBs (Render Backends):\t\t%3d RB+ (%d ROP)" ${NUM_RB} $(( ${NUM_RB} * 8 ))
@@ -181,7 +193,7 @@ VRAM Size:\t\t%6d MB\n\
 VRAM Bit Width:\t\t%6d-bit\n\
 " ${VRAM_MODULE} ${VRAM_MAX_SIZE} ${VRAM_BIT_WIDTH}
 
-if [ ${VRAM_TYPE} -le 2 ] || [ ${VRAM_TYPE} -eq 4 ]; then
+if [ ${VRAM_TYPE} -le 2 ] || [ ${VRAM_TYPE} = 4 ]; then
    VRAM_MBW="Unknown"
 else
    VRAM_MBW="$(( ${VRAM_BIT_WIDTH} / 8 * ${DATA_RATE} / 1000 ))"
@@ -198,59 +210,65 @@ L2 Cache Blocks:\t%3d Block\n\
 L2 Cache Size:\t\t%3d MB (%d KB)\n\n\
 " ${NUM_L2_CACHE_BLOCK} $(( ${L2_CACHE} / 1024 / 1024 )) $(( ${L2_CACHE} / 1024 ))
 
-if [ ${VRAM_MAX_SIZE} == ${VRAM_VIS_SIZE} ] || [ ${VRAM_ALL_VIS} == 1 ]; then
-   echo "AMD Smart Access Memory\n"
+if [ ${VRAM_MAX_SIZE} = ${VRAM_VIS_SIZE} ] || [ ${VRAM_ALL_VIS} = 1 ]; then
+   printf "AMD Smart Access Memory\n\n"
 fi
 
 _diagram_draw_func () {
 
-echo "\n## AMD GPU Diagram\n"
+printf "\n## AMD GPU Diagram\n\n"
 
-for (( se=0; se<${MAX_SE}; se++ )); do
+se=0
+while [ ${se} -lt ${MAX_SE} ]; do
 
    printf " +- ShaderEngine(${se}) -"
-   printf -- '--'"%.s" {1..10}
+   _repeat_printf "--" "10"
    printf "+\n"
 
-   for (( sh=0; sh<${SA_PER_SE}; sh++ )); do
+   sh=0
+   while [ ${sh} -lt ${SA_PER_SE} ]; do
 
       printf " | "
-      printf -- ' '"%.s" {1..37}
+      _repeat_printf " " "37"
       printf " | "
       printf "\n"
       printf " | +- ShaderArray(${sh}) "
-      printf -- '--'"%.s" {1..9}
+      _repeat_printf "--" "9"
       printf "+ |\n"
 
       TMP_CU="${CU_PER_SA}"
 
-      if [ ${sh} == 0 ] && [ ${CU_PER_SA} != ${MIN_CU_PER_SA} ]; then
+      if [ ${sh} = 0 ] && [ ${CU_PER_SA} != ${MIN_CU_PER_SA} ]; then
          TMP_CU="${MIN_CU_PER_SA}"
       fi
 
       if [ ${GPU_FAMILY} -ge 74 ]; then
-         for (( wgp=0; wgp<${TMP_CU}; wgp++ )); do
-            printf " | | "
-            printf '='"%.s" {1..5}
-            printf " "
-            printf '='"%.s" {1..5}
+         wgp=0
+         while [ ${wgp} -lt ${TMP_CU} ]; do
+            printf " | |  "
+            _repeat_printf "=" "4"
+            printf "  "
+            _repeat_printf "=" "4"
             printf "  WGP(%02d)  " ${wgp}
-            printf '='"%.s" {1..5}
-            printf " "
-            printf '='"%.s" {1..5}
-            printf " | |\n"
+            _repeat_printf "=" "4"
+            printf "  "
+            _repeat_printf "=" "4"
+            printf "  | |\n"
+            wgp=$(( ${wgp} + 1 ))
          done
       else
-         for (( cu=0; cu<${CU_PER_SA}; cu++ )); do
+         cu=0
+         while [ ${cu} -lt ${CU_PER_SA} ]; do
             printf " | |  "
-            printf '='"%.s" {1..4}
+            _repeat_printf "=" "4"
             printf "  "
-            printf '='"%.s" {1..4}
+            _repeat_printf "=" "4"
             printf "  CU(%02d)  " ${cu}
-            printf '='"%.s" {1..4}
+            _repeat_printf "=" "4"
             printf "  "
-            printf '='"%.s" {1..4}
+            _repeat_printf "=" "4"
             printf "   | |\n"
+            cu=$(( ${cu} + 1 ))
          done
       fi
          printf " | |"
@@ -269,13 +287,17 @@ RBF="${RB_PER_SE}"
             RBTMP="${RB_PER_SA}"
          fi
 
-         for (( rbc=0; rbc<${RBTMP}; rbc++ )); do
+         rbcount=0
+         while [ ${rbcount} -lt ${RBTMP} ]; do
             printf "[ RB ]"
-            printf ' '"%.s" {1..2}
+            printf "  "
+            rbcount=$(( ${rbcount} + 1 ))
          done
 
-         for (( fill=${RBTMP}; fill<4; fill++ )); do
-            printf ' '"%.s" {1..8}
+         fill=${RBTMP}
+         while [ ${fill} -lt 4 ]; do
+            _repeat_printf " " "8"
+            fill=$(( ${fill} + 1 ))
          done
 
          printf "| |\n"
@@ -288,9 +310,9 @@ RDNA_L1C_SIZE="128"
 
 if [ ${GPU_FAMILY} -ge 74 ]; then
    printf " | |"
-   printf ' '"%.s" {1..10}
+   _repeat_printf " " "10"
    printf "[-  L1$ ${RDNA_L1C_SIZE}KB  -]"
-   printf ' '"%.s" {1..8}
+   _repeat_printf " " "8"
    printf "| |\n"
 fi
 
@@ -300,21 +322,23 @@ fi
 
    # ShaderArray last line
       printf " | +"
-      printf -- '-'"%.s" {1..35}
+      _repeat_printf "-" "35"
       printf "+ |\n"
 
+      sh=$(( ${sh} + 1 ))
    done # ShaderArray end
 
 printf " |"
-printf ' '"%.s" {1..8}
+_repeat_printf " " "8"
 printf "[- Geometry Processor -]"
-printf ' '"%.s" {1..7}
+_repeat_printf " " "7"
 printf "|\n"
 
 printf " +"
-printf -- '-'"%.s" {1..39}
+_repeat_printf "-" "39"
 printf "+\n\n"
 
+   se=$(( ${se} + 1 ))
 done # ShaderEngine end
 
 #  correct AMDGPU L2cache Size, maybe (GFX9+)
@@ -341,8 +365,10 @@ while [ ${L2CBF} -gt 0 ]; do
       L2CB_TMP="${L2CBF}"
    fi
 
-   for (( l2c=0; l2c<${L2CB_TMP}; l2c++ )); do
+   l2c=0
+   while [ ${l2c} -lt ${L2CB_TMP} ]; do
       printf "[L2$ ${L2C_SIZE}K] "
+      l2c=$(( ${l2c} + 1 ))
    done
       printf "\n"
 
@@ -350,7 +376,7 @@ while [ ${L2CBF} -gt 0 ]; do
 
 done # L2cache end
 
-echo
+printf "\n"
 }
 
 if [ ${NO_DIAGRAM} != 1 ]; then
