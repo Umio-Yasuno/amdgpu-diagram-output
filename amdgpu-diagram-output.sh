@@ -234,7 +234,7 @@ for (( se=0; se<${MAX_SE}; se++ )); do
             printf '='"%.s" {1..5}
             printf " "
             printf '='"%.s" {1..5}
-            printf "  WGP(%2d)  " ${wgp}
+            printf "  WGP(%02d)  " ${wgp}
             printf '='"%.s" {1..5}
             printf " "
             printf '='"%.s" {1..5}
