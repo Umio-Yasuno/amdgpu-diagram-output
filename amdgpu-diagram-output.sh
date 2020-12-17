@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 IFS=''
 GPUINFO="$(env AMD_DEBUG=info glxinfo -B)"
 PCIBUS="/sys/bus/pci/devices/$(echo ${GPUINFO} | grep "pci (domain:bus:dev.func)" | sed -e "s/^.*func):\ //g")"
@@ -44,6 +44,24 @@ _debug_spec_func () {
    export RB_PLUS="0"
 }
 
+_option_help () {
+
+printf -- "\n\nUsage: $(basename ${0}) [OPTION]...\n
+  -ni, -noinfo\t\t\tdo not display spec list
+  -nd, -nodia\t\t\tdo not display diagram
+  -nogfx\t\t\tdo not display gfx block
+  \t\t\t\t  (RB, Rasterizer/Primitive, Geometry)
+  --arch=gfx(9|10|10.3)\t\toverride GFX IP/Architecture
+  --se=NUM\t\t\toverride number of ShaderEngine
+  --sa-per-se=NUM\t\toverride number of ShaderArray per ShaderEngine
+  --cu-per-sa=NUM\t\toverride number of CU per ShaderArray
+  --rb=NUM\t\t\toverride number of RenderBackend
+  -rbplus\t\t\tRB+ force-enable  (RB = 4ROP, RB+ = 8ROP)
+  \n  -h, --help\t\t\tdisplay this help and exit
+\n"
+
+}
+
 amdgpu_var () {
    export ${1}=0
    export ${1}="$( echo ${GPUINFO} | grep " ${2} =" | sed -e "s/^.*${2}\ \=\ //g" )"
@@ -76,7 +94,7 @@ VRAM_MAX_SIZE="${VRAM_MAX_SIZE%\ MB}"
 VRAM_VIS_SIZE="${VRAM_VIS_SIZE%\ MB}"
 
 amdgpu_var "RB_PLUS" "rbplus_allowed"
-amdgpu_var "NO_GFX" "has_graphics"
+amdgpu_var "HAS_GFX" "has_graphics"
 
 if [ $(echo ${GPUINFO} | grep -c "max_sa_per_se") = 1 ]; then
    amdgpu_var "SA_PER_SE" "max_sa_per_se"
@@ -93,19 +111,19 @@ fi
 DEBUG_SPEC="0"
 NO_INFO="0"
 NO_DIAGRAM="0"
-NO_GFX="0"
+# HAS_GFX="0"
 
 for opt in ${@}; do
    case ${opt} in
       "-d")
          DEBUG_SPEC="1"
          _debug_spec_func ;;
-      "-noinfo")
+      "-ni"|"-noinfo")
          NO_INFO="1" ;;
-      "-nodia")
+      "-nd"|"-nodia")
          NO_DIAGRAM="1" ;;
       "-nogfx")
-         NO_GFX="1" ;;
+         HAS_GFX="0" ;;
       "--arch="*)
          if [ ${opt#--arch=} = "gfx9" ]; then
             GPU_ASIC="VEGA10 pseudo"
@@ -120,7 +138,10 @@ for opt in ${@}; do
          else
             printf -- "\n Error: ${opt}\n"
             exit 1
-         fi ;;
+         fi
+            NUM_L2_CACHE_BLOCK="16"
+            L2_CACHE="$(( 4096 * 1024 ))"
+         ;;
       "--se="*)
          _arg_judge ${opt#--se=} ${opt}
          MAX_SE="${opt#--se=}" ;;
@@ -136,14 +157,18 @@ for opt in ${@}; do
          NUM_RB="${opt#--rb=}" ;;
       "-rbplus")
          RB_PLUS="1" ;;
+      "-h"|"--help")
+         _option_help
+         exit 0 ;;
       *)
          printf -- "\n Error option: ${opt}\n"
-         exit 1
+         _option_help
+         exit 1 ;;
    esac
 done
 
 if [ ${GPU_ASIC} = "ARCTURUS" ]; then
-   NO_GFX="1"
+   HAS_GFX="0"
 fi
 
 _info_list_func () {
@@ -157,46 +182,32 @@ fi
 #  https://gitlab.freedesktop.org/mesa/mesa/-/blob/master/src/amd/common/amd_family.h
 
 case ${CHIP_CLASS} in
-   1)
-      DEC_CHIP_CLASS="R300" ;;
-   2)
-      DEC_CHIP_CLASS="R400" ;;
-   3)
-      DEC_CHIP_CLASS="R500" ;;
-   4)
-      DEC_CHIP_CLASS="R600" ;;
-   5)
-      DEC_CHIP_CLASS="R700" ;;
-   6)
-      DEC_CHIP_CLASS="EVERGREEN" ;;
-   7)
-      DEC_CHIP_CLASS="CAYMAN" ;;
-   8)
-      DEC_CHIP_CLASS="GFX6" ;;
-   9)
-      DEC_CHIP_CLASS="GFX7" ;;
-   10)
-      DEC_CHIP_CLASS="GFX8" ;;
-   11)
-      DEC_CHIP_CLASS="GFX9" ;;
-   12)
-      DEC_CHIP_CLASS="GFX10" ;;
-   13)
-      DEC_CHIP_CLASS="GFX10_3" ;;
-   0|*)
-      DEC_CHIP_CLASS="Unknown" ;;
+   1)    DEC_CHIP_CLASS="R300" ;;
+   2)    DEC_CHIP_CLASS="R400" ;;
+   3)    DEC_CHIP_CLASS="R500" ;;
+   4)    DEC_CHIP_CLASS="R600" ;;
+   5)    DEC_CHIP_CLASS="R700" ;;
+   6)    DEC_CHIP_CLASS="EVERGREEN" ;;
+   7)    DEC_CHIP_CLASS="CAYMAN" ;;
+   8)    DEC_CHIP_CLASS="GFX6" ;;
+   9)    DEC_CHIP_CLASS="GFX7" ;;
+   10)   DEC_CHIP_CLASS="GFX8" ;;
+   11)   DEC_CHIP_CLASS="GFX9" ;;
+   12)   DEC_CHIP_CLASS="GFX10" ;;
+   13)   DEC_CHIP_CLASS="GFX10_3" ;;
+   0|*)  DEC_CHIP_CLASS="Unknown" ;;
 esac
 
 printf "\n\
-Driver Version:\t\t${MESA_DRIVER_VER}\n\n\
-GPU ASIC:\t\t${GPU_ASIC}\n\
-Chip class:\t\t${DEC_CHIP_CLASS}\n\
-Marketing Name:\t\t${CARD_NAME}\n\
-GPU Type:\t\t${GPU_TYPE}\n\
+Driver Version:\t\t${MESA_DRIVER_VER}\n
+GPU ASIC:\t\t${GPU_ASIC}
+Chip class:\t\t${DEC_CHIP_CLASS}
+Marketing Name:\t\t${CARD_NAME}
+GPU Type:\t\t${GPU_TYPE}
 \n"
 
 if [ ${CHIP_CLASS} -ge 12 ] && [ ${CU_PER_SA} != ${MIN_CU_PER_SA} ]; then
-   NUM_CU="$(( ${MAX_SE}  * ${SA_PER_SE} / 2 * ( ${CU_PER_SA} + ${MIN_CU_PER_SA} ) ))"
+   NUM_CU="$(( ${MAX_SE} * ( ${CU_PER_SA} + ${MIN_CU_PER_SA} ) ))"
 else
    NUM_CU="$(( ${MAX_SE} * ${SA_PER_SE} * ${CU_PER_SA} ))"
 fi
@@ -208,8 +219,8 @@ else
 fi
 
 printf "\
-GFX Clock Range:\t%4d MHz - %4d MHz\n\
-Peak GFX Clock:\t\t%4d MHz\n\
+GFX Clock Range:\t%4d MHz - %4d MHz
+Peak GFX Clock:\t\t%4d MHz
 \n" \
 $(head -n1 ${PCIBUS}/pp_dpm_sclk | sed -E "s/(^0:\ |Mhz.*$)//g") $(tail -n1 ${PCIBUS}/pp_dpm_sclk | sed -E "s/(^.*:\ |Mhz.*$)//g") \
 ${MAX_SHADER_CLOCK}
@@ -222,8 +233,8 @@ else
 fi
 
 printf "\
-Peak FP16:\t\t%5.2f TFlops\n\
-Peak FP32:\t\t%5.2f TFlops\n\
+Peak FP16:\t\t%5.2f TFlops
+Peak FP32:\t\t%5.2f TFlops
 \n" \
 ${PEAK_FP16} \
 ${PEAK_FP32}
@@ -235,10 +246,10 @@ else
 fi
 
 printf "\
-RBs (Render Backends):\t\t%3d RB (%d ROP)\n\
-Peak Pixel Fill-Rate:\t\t%6.2f GP/s\n\
-TMUs (Texture Mapping Units):\t%3d TMU\n\
-Peak Texture Fill-Rate:\t\t%6.2f GT/s\n\
+RBs (Render Backends):\t\t%3d RB (%d ROP)
+Peak Pixel Fill-Rate:\t\t%6.2f GP/s
+TMUs (Texture Mapping Units):\t%3d TMU
+Peak Texture Fill-Rate:\t\t%6.2f GT/s
 \n" \
 ${NUM_RB} ${NUM_ROP} \
 $(echo "scale=2;${NUM_ROP} * ${MAX_SHADER_CLOCK} / 1000" | bc ) \
@@ -284,12 +295,12 @@ else
 fi
 
 printf "\
-VRAM Type:\t\t%9s\n\
-VRAM Size:\t\t%6d MB\n\
-VRAM Bit Width:\t\t%6d-bit\n\
-Memory Clock Range:\t%6d MHz - %4d MHz\n\
-Peak Memory Clock:\t%6d MHz\n\
-Peak VRAM Bandwidth:\t%9.2f GB/s\n\
+VRAM Type:\t\t%9s
+VRAM Size:\t\t%6d MB
+VRAM Bit Width:\t\t%6d-bit
+Memory Clock Range:\t%6d MHz - %4d MHz
+Peak Memory Clock:\t%6d MHz
+Peak VRAM Bandwidth:\t%9.2f GB/s
 \n" \
 ${VRAM_MODULE} \
 ${VRAM_MAX_SIZE} \
@@ -312,8 +323,8 @@ case ${GPU_ASIC} in
 esac
 
 printf "\
-L2 Cache Blocks:\t%3d Block\n\
-L2 Cache Size:\t\t%3d MB (%d KB)\n\n\
+L2 Cache Blocks:\t%3d Block
+L2 Cache Size:\t\t%3d MB (%d KB)\n
 " ${NUM_L2_CACHE_BLOCK} $(( ${L2_CACHE} / 1024 / 1024 )) $(( ${L2_CACHE} / 1024 ))
 
 if [ ${VRAM_MAX_SIZE} = ${VRAM_VIS_SIZE} ] || [ ${VRAM_ALL_VIS} = 1 ]; then
@@ -372,7 +383,7 @@ while [ ${se} -lt ${MAX_SE} ]; do
 RB_PER_SA="$(( ${NUM_RB} / ${MAX_SE} / ${SA_PER_SE} ))"
 RBF="${RB_PER_SE}"
 
-   if ! [ ${RB_PER_SA} -lt 1 ] && [ ${NO_GFX} != 1 ] && ! [ $(( ${NUM_RB} % (${MAX_SE} * ${SA_PER_SE}) )) -gt 0 ]; then
+   if ! [ ${RB_PER_SA} -lt 1 ] && [ ${HAS_GFX} = 1 ] && ! [ $(( ${NUM_RB} % (${MAX_SE} * ${SA_PER_SE}) )) -gt 0 ]; then
       while [ ${RB_PER_SA} -gt 0 ]; do
          printf " | |  "
 
@@ -418,7 +429,7 @@ RDNA_L1C_SIZE="128"
    printf "| |\n"
 fi
 
-if [ ${NO_GFX} != 1 ]; then
+if [ ${HAS_GFX} = 1 ]; then
    printf " | | "
    printf "[-  Rasterizer/Primitive Unit  -]"
    printf " | |\n"
@@ -432,7 +443,7 @@ fi
       sh=$(( ${sh} + 1 ))
    done # ShaderArray end
 
-if [ ${NO_GFX} != 1 ]; then
+if [ ${HAS_GFX} = 1 ]; then
    printf " |"
    _repeat_printf " " "8"
    printf "[- Geometry Processor -]"
@@ -444,8 +455,7 @@ printf " +"
 _repeat_printf "-" "39"
 printf "+\n\n"
 
-se=$(( ${se} + 1 ))
-
+   se=$(( ${se} + 1 ))
 done # ShaderEngine end
 
 L2C_SIZE="$(( ${L2_CACHE} / ${NUM_L2_CACHE_BLOCK} / 1024 ))"
