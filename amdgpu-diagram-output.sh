@@ -24,25 +24,25 @@ _arg_judge () {
 }
 
 _debug_spec_func () {
-  export GPU_ASIC="NAVI10"
-  export CARD_NAME="Navi10 Card"
+  GPU_ASIC="NAVI10"
+  CARD_NAME="Navi10 Card"
 #   export GPU_FAMILY="74"
-  export CHIP_CLASS="12"
-  export MAX_SE="2"
-  export SA_PER_SE="2"
+  CHIP_CLASS="12"
+  MAX_SE="2"
+  SA_PER_SE="2"
 
-  export CU_PER_SA="10"
-  export MIN_CU_PER_SA="8"
+  CU_PER_SA="10"
+  MIN_CU_PER_SA="8"
 
-  export MAX_SHADER_CLOCK="2000"
-  export NUM_RB="16"
-  export L2_CACHE="$(( 4096 * 1024 ))"
-  export NUM_L2_CACHE_BLOCK="16"
-  export VRAM_BIT_WIDTH="256"
-  export VRAM_TYPE="9"
-  export MEMORY_CLOCK="875"
+  MAX_SHADER_CLOCK="2000"
+  NUM_RB="16"
+  L2_CACHE="$(( 4096 * 1024 ))"
+  NUM_L2_CACHE_BLOCK="16"
+  VRAM_BIT_WIDTH="256"
+  VRAM_TYPE="9"
+  MEMORY_CLOCK="875"
 
-  export RB_PLUS="0"
+  RB_PLUS="0"
 }
 
 _option_help () {
@@ -332,6 +332,8 @@ L2 Cache Blocks:\t%3d Block
 L2 Cache Size:\t\t%3d MB (%d KB)\n
 " ${NUM_L2_CACHE_BLOCK} $(( ${L2_CACHE} / 1024 / 1024 )) $(( ${L2_CACHE} / 1024 ))
 
+printf -- "Power cap:\t\t%3d W\n\n" $(( $(cat ${PCIBUS}/hwmon/hwmon0/power1_cap) / 1000 / 1000 ))
+
 if [ ${VRAM_MAX_SIZE} = ${VRAM_VIS_SIZE} ] || [ ${VRAM_ALL_VIS} = 1 ]; then
   printf "AMD Smart Access Memory\n"
 fi
@@ -340,18 +342,18 @@ fi
 _draw_cu_wgp () {
   if [ ${CHIP_CLASS} -ge 12 ]; then
     UNIT_NAME="WGP"
-    TMP_UNIT_COUNT="$(( ${CU_PER_SA} / 2 ))"
+    tmp_unit_count="$(( ${CU_PER_SA} / 2 ))"
   else
     UNIT_NAME="CU"
-    TMP_UNIT_COUNT="${CU_PER_SA}"
+    tmp_unit_count="${CU_PER_SA}"
   fi
 
   if [ ${sh} = 0 ] && [ ${CU_PER_SA} != ${MIN_CU_PER_SA} ]; then
-    TMP_UNIT_COUNT="$(( ${MIN_CU_PER_SA} / 2 ))"
+    tmp_unit_count="$(( ${MIN_CU_PER_SA} / 2 ))"
   fi
 
   unit_count=0
-  while [ ${unit_count} -lt ${TMP_UNIT_COUNT} ]; do
+  while [ ${unit_count} -lt ${tmp_unit_count} ]; do
     c=0
     while [ ${c} -lt ${COL} ]; do
       printf " | | "
@@ -374,90 +376,150 @@ _draw_cu_wgp () {
 }
 
 _draw_rb () {
+  RBF="${RB_PER_SE}"
 
-    while [ ${RB_PER_SA} -gt 0 ]; do
-      c=0
-      while [ ${c} -lt ${COL} ]; do
-        printf " | |  "
+  if [ ${RB_PLUS} = 1 ]; then
+    RB_TYPE="[ RB+ ]"
+  else
+    RB_TYPE="[ RB ]"
+  fi
 
-        if [ ${RB_PER_SA} -gt 4 ]; then
-          RBTMP="4"
-        else
-          RBTMP="${RB_PER_SA}"
-        fi
-
+  while [ ${RB_PER_SA} -gt 0 ]; do
+    c=0
+    while [ ${c} -lt ${COL} ]; do
+      printf " | |  "
+  
+      if [ ${RB_PER_SA} -gt 4 ]; then
+        rb_tmp="4"
+      else
+        rb_tmp="${RB_PER_SA}"
+      fi
+  
     rbcount=0
-    if [ ${RB_PLUS} = 1 ]; then
-      while [ ${rbcount} -lt ${RBTMP} ]; do
-        printf "[ RB+ ]"
-#            printf " "
-        rbcount=$(( ${rbcount} + 1 ))
-      done
-    else
-      while [ ${rbcount} -lt ${RBTMP} ]; do
-        printf "[ RB ]"
-        printf " "
-        rbcount=$(( ${rbcount} + 1 ))
-      done
-    fi
-
-    fill=${RBTMP}
+    while [ ${rbcount} -lt ${rb_tmp} ]; do
+      printf "%-7s" ${RB_TYPE}
+      rbcount=$(( ${rbcount} + 1 ))
+    done
+  
+    fill=${rb_tmp}
     while [ ${fill} -lt 4 ]; do
       _repeat_printf " " "7"
       fill=$(( ${fill} + 1 ))
     done
-
+  
     printf "  | | "
-
+  
     c=$(( ${c} + 1 ))
       if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
         break
       fi
     done
     printf "\n"
-
+  
     RB_PER_SA=$(( ${RB_PER_SA} - 4))
-    done # RB end
+  done # RB end
 }
 
 _draw_rdna_l1c () {
-RDNA_L1C_SIZE="128"
-c=0
-while [ ${c} -lt ${COL} ]; do
-  printf " | |"
-  _repeat_printf " " "9"
-  printf "[- L1$ ${RDNA_L1C_SIZE}KB -]"
-  _repeat_printf " " "8"
-  printf "| | "
-  c=$(( ${c} + 1 ))
-    if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
-      break
-    fi
-done
+  RDNA_L1C_SIZE="128"
+  c=0
+  while [ ${c} -lt ${COL} ]; do
+    printf " | |"
+    _repeat_printf " " "8"
+    printf "[- L1$ ${RDNA_L1C_SIZE}KB -]"
+    _repeat_printf " " "9"
+    printf "| | "
+    c=$(( ${c} + 1 ))
+      if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
+        break
+      fi
+  done
   printf "\n"
 }
 
 _draw_raster_prim () {
-c=0
-while [ ${c} -lt ${COL} ]; do
-  printf " | |  "
-  printf "[ Rasterizer/Primitive Unit ]"
-  printf " | | "
-  c=$(( ${c} + 1 ))
-    if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
-      break
-    fi
-done
+  c=0
+  while [ ${c} -lt ${COL} ]; do
+    printf " | |  "
+    printf "[ Rasterizer/Primitive Unit ]"
+    printf " | | "
+    c=$(( ${c} + 1 ))
+      if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
+        break
+      fi
+  done
   printf "\n"
 }
 
-_draw_shader_array () {
+_draw_geometry () {
+  c=0
+  while [ ${c} -lt ${COL} ]; do
+    printf " |"
+    _repeat_printf " " "6"
+    printf "[- Geometry Processor -]"
+    _repeat_printf " " "6"
+    printf "| "
+    c=$(( ${c} + 1 ))
+    if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
+      break
+    fi
+  done
+  printf "\n"
+}
+
+_draw_l2c () {
+  L2C_SIZE="$(( ${L2_CACHE} / ${NUM_L2_CACHE_BLOCK} / 1024 ))"
+  L2CBF="${NUM_L2_CACHE_BLOCK}"
+  L2C_COL="4"
+  while [ ${L2CBF} -gt 0 ]; do
+  
+    if [ ${L2CBF} -gt ${L2C_COL} ]; then
+      l2cb_tmp="${L2C_COL}"
+    else
+      l2cb_tmp="${L2CBF}"
+    fi
+  
+    _repeat_printf " " "$(( ${COL} * 2 - 1 ))"
+    l2c=0
+    while [ ${l2c} -lt ${l2cb_tmp} ]; do
+      printf "[L2$ %3dK]" ${L2C_SIZE}
+      _repeat_printf " " "$(( ${COL} * 3 ))"
+      l2c=$(( ${l2c} + 1 ))
+    done
+    printf "\n"
+  
+    L2CBF="$(( ${L2CBF} - ${L2C_COL} ))"
+  
+  done # L2cache end
+}
+
+_diagram_draw_func () {
+
+printf "\n\n## ${GPU_ASIC} Diagram\n\n"
+
+# ShaderEngine
+se=0
+while [ ${se} -lt ${MAX_SE} ]; do
+
+  c=0
+  while [ ${c} -lt ${COL} ]; do
+    printf " +- ShaderEngine(%02d) " $(( ${c} + ${se} ))
+    _repeat_printf "-" "17"
+    printf "+ "
+    c=$(( ${c} + 1 ))
+    if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
+      break
+    fi
+  done
+  printf "\n"
+ 
+  # ShderArray
   sh=0
   while [ ${sh} -lt ${SA_PER_SE} ]; do
 
   c=0
   while [ ${c} -lt ${COL} ]; do
-    printf " | +- ShaderArray(%02d) " ${sh}
+    printf -- " | +- ShaderArray(%02d) " ${sh}
     _repeat_printf "-" "14"
     printf "+ | "
     c=$(( ${c} + 1 ))
@@ -469,21 +531,21 @@ _draw_shader_array () {
 
   _draw_cu_wgp
 
-RB_PER_SA="$(( ${NUM_RB} / ${MAX_SE} / ${SA_PER_SE} ))"
-RBF="${RB_PER_SE}"
-  if ! [ ${RB_PER_SA} -lt 1 ] && \
-       [ ${HAS_GFX} = 1 ] && \
-     ! [ $(( ${NUM_RB} % (${MAX_SE} * ${SA_PER_SE}) )) -gt 0 ]; then
+  RB_PER_SA="$(( ${NUM_RB} / ${MAX_SE} / ${SA_PER_SE} ))"
+
+  if [ ${RB_PER_SA} -ge 1 ] && \
+     [ ${HAS_GFX} = 1 ] && \
+     [ $(( ${NUM_RB} % (${MAX_SE} * ${SA_PER_SE}) )) -lt 1 ]; then
     _draw_rb
   fi
 
-if [ ${CHIP_CLASS} -ge 12 ]; then
-  _draw_rdna_l1c
-fi
+  if [ ${CHIP_CLASS} -ge 12 ]; then
+    _draw_rdna_l1c
+  fi
 
-if [ ${HAS_GFX} = 1 ]; then
-  _draw_raster_prim
-fi
+  if [ ${HAS_GFX} = 1 ]; then
+    _draw_raster_prim
+  fi
 
   # ShaderArray last line
   c=0
@@ -500,85 +562,22 @@ fi
 
   sh=$(( ${sh} + 1 ))
   done # ShaderArray end
-}
 
-_draw_geometry () {
-if [ ${HAS_GFX} = 1 ]; then
-  c=0
-  while [ ${c} -lt ${COL} ]; do
-    printf " |"
-    _repeat_printf " " "6"
-    printf "[- Geometry Processor -]"
-    _repeat_printf " " "6"
-    printf "| "
-    c=$(( ${c} + 1 ))
-    if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
-      break
-    fi
-  done
-  printf "\n"
-fi
-}
-
-_draw_l2c () {
-L2C_SIZE="$(( ${L2_CACHE} / ${NUM_L2_CACHE_BLOCK} / 1024 ))"
-L2CBF="${NUM_L2_CACHE_BLOCK}"
-L2C_COL="4"
-while [ ${L2CBF} -gt 0 ]; do
-
-  if [ ${L2CBF} -gt ${L2C_COL} ]; then
-    L2CB_TMP="${L2C_COL}"
-  else
-    L2CB_TMP="${L2CBF}"
+  if [ ${HAS_GFX} = 1 ]; then
+    _draw_geometry
   fi
 
-  _repeat_printf " " "$(( ${COL} * 2 - 1 ))"
-  l2c=0
-  while [ ${l2c} -lt ${L2CB_TMP} ]; do
-    printf "[L2$ %3dK]" ${L2C_SIZE}
-    _repeat_printf " " "$(( ${COL} * 2 ))"
-    l2c=$(( ${l2c} + 1 ))
-  done
-  printf "\n"
-
-  L2CBF="$(( ${L2CBF} - ${L2C_COL} ))"
-
-done # L2cache end
-}
-
-_diagram_draw_func () {
-
-printf "\n\n## ${GPU_ASIC} Diagram\n\n"
-
-se=0
-while [ ${se} -lt ${MAX_SE} ]; do
-
+  # ShadeEngine last line
   c=0
   while [ ${c} -lt ${COL} ]; do
-    printf " +- ShaderEngine(%02d) " $(( ${c} + ${se} ))
-    _repeat_printf "-" "17"
+    printf " +"
+    _repeat_printf "-" "36"
     printf "+ "
-    c=$(( ${c} + 1 ))
-    if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
-      break
-    fi
+    c=$(( ${c} +  1 ))
+      if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
+        break
+      fi
   done
-  printf "\n"
- 
-  _draw_shader_array
-
-  _draw_geometry
-
-c=0
-while [ ${c} -lt ${COL} ]; do
-  printf " +"
-  _repeat_printf "-" "36"
-  printf "+ "
-  c=$(( ${c} +  1 ))
-  if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
-    break
-  fi
-done
   printf "\n\n"
 
   se=$(( ${se} + ${COL} ))
