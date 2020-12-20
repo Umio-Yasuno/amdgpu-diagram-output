@@ -57,11 +57,11 @@ printf -- "\n\nUsage: $(basename ${0}) [OPTION]...\n
   --cu-per-sa=NUM\t\toverride number of CU per ShaderArray
   --rb=NUM\t\t\toverride number of RenderBackend
   -rbplus\t\t\tRB+ force-enable  (RB = 4ROP, RB+ = 8ROP)
-  \t\t\t\t  output to: /tmp/<GPU_NAME>-diagram.png
-  \t\t\t\t  requirement: imagemagick, \"Dejavu Sans Mono\" font
   \n  -h, --help\t\t\tdisplay this help and exit
 \n"
 #  \n  -image\t\t\toutput image of diagram
+#  \t\t\t\t  output to: /tmp/<GPU_NAME>-diagram.png
+#  \t\t\t\t  requirement: imagemagick, \"Dejavu Sans Mono\" font
 }
 
 amdgpu_var () {

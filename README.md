@@ -5,6 +5,26 @@
  * RadeonSI Driver ([mesa](https://gitlab.freedesktop.org/mesa/mesa))
  * glxinfo (mesa-utils)
 
+## Option
+
+```
+Usage: amdgpu-diagram-output.sh [OPTION]...
+
+  --col=NUM			setting number of diagram column (default: 2)
+  -ni, -noinfo			do not display spec list
+  -nd, -nodia			do not display diagram
+  -nogfx			do not display gfx block
+  				  (RB, Rasterizer/Primitive, Geometry)
+  --arch=gfx(9|10|10.3)		override GFX IP/Architecture
+  --se=NUM			override number of ShaderEngine
+  --sa-per-se=NUM		override number of ShaderArray per ShaderEngine
+  --cu-per-sa=NUM		override number of CU per ShaderArray
+  --rb=NUM			override number of RenderBackend
+  -rbplus			RB+ force-enable  (RB = 4ROP, RB+ = 8ROP)
+  
+  -h, --help			display this help and exit
+```
+
 ## Result Example
 
 ```
