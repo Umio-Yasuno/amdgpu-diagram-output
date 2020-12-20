@@ -4,8 +4,6 @@ GPUINFO="$(env AMD_DEBUG=info glxinfo -B)"
 PCIBUS="/sys/bus/pci/devices/$(echo ${GPUINFO} | grep "pci (domain:bus:dev.func)" | sed -e "s/^.*func):\ //g")"
 MESA_DRIVER_VER="$(echo ${GPUINFO} | grep "OpenGL core profile version" | sed -e "s/^.*Core\ Profile)\ //g")"
 
-# echo ${GPUINFO}
-
 _repeat_printf () {
   i=0
   while [ ${i} -lt ${2} ]; do
@@ -59,9 +57,11 @@ printf -- "\n\nUsage: $(basename ${0}) [OPTION]...\n
   --cu-per-sa=NUM\t\toverride number of CU per ShaderArray
   --rb=NUM\t\t\toverride number of RenderBackend
   -rbplus\t\t\tRB+ force-enable  (RB = 4ROP, RB+ = 8ROP)
+  \t\t\t\t  output to: /tmp/<GPU_NAME>-diagram.png
+  \t\t\t\t  requirement: imagemagick, \"Dejavu Sans Mono\" font
   \n  -h, --help\t\t\tdisplay this help and exit
 \n"
-
+#  \n  -image\t\t\toutput image of diagram
 }
 
 amdgpu_var () {
@@ -110,11 +110,12 @@ else
   amdgpu_var "NUM_RB" "num_render_backends"
 fi
 
-DEBUG_SPEC="0"
-NO_INFO="0"
-NO_DIAGRAM="0"
+DEBUG_SPEC=0
+NO_INFO=0
+NO_DIAGRAM=0
 # HAS_GFX="0"
 COL=2
+IMAGE=0
 
 for opt in ${@}; do
   case ${opt} in
@@ -163,6 +164,8 @@ for opt in ${@}; do
     NUM_RB="${opt#--rb=}" ;;
   "-rbplus")
     RB_PLUS="1" ;;
+  "-image")
+    IMAGE=1 ;;
   "-h"|"--help")
     _option_help
     exit 0 ;;
@@ -224,11 +227,13 @@ else
   printf "Compute Units:\t\t%4d CU\n" ${NUM_CU}
 fi
 
+MIN_SCLK="$(head -n1 ${PCIBUS}/pp_dpm_sclk | sed -E "s/(^0:\ |Mhz.*$)//g")"
+MAX_SCLK="$(tail -n1 ${PCIBUS}/pp_dpm_sclk | sed -E "s/(^.*:\ |Mhz.*$)//g")"
 printf "\
 GFX Clock Range:\t%4d MHz - %4d MHz
 Peak GFX Clock:\t\t%4d MHz
 \n" \
-$(head -n1 ${PCIBUS}/pp_dpm_sclk | sed -E "s/(^0:\ |Mhz.*$)//g") $(tail -n1 ${PCIBUS}/pp_dpm_sclk | sed -E "s/(^.*:\ |Mhz.*$)//g") \
+${MIN_SCLK} ${MAX_SCLK} \
 ${MAX_SHADER_CLOCK}
 
 PEAK_FP32="$(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000" | bc )"
@@ -300,6 +305,8 @@ else
   VRAM_MBW="$(( ${VRAM_BIT_WIDTH} / 8 * ${DATA_RATE} / 1000 ))"
 fi
 
+MIN_MCLK="$(head -n1 ${PCIBUS}/pp_dpm_mclk | sed -E "s/(^0:\ |Mhz.*$)//g")"
+MAX_MCLK="$(tail -n1 ${PCIBUS}/pp_dpm_mclk | sed -E "s/(^.*:\ |Mhz.*$)//g")"
 printf "\
 VRAM Type:\t\t%9s
 VRAM Size:\t\t%6d MB
@@ -311,7 +318,7 @@ Peak VRAM Bandwidth:\t%9.2f GB/s
 ${VRAM_MODULE} \
 ${VRAM_MAX_SIZE} \
 ${VRAM_BIT_WIDTH} \
-$(head -n1 ${PCIBUS}/pp_dpm_mclk | sed -E "s/(^0:\ |Mhz.*$)//g") $(tail -n1 ${PCIBUS}/pp_dpm_mclk | sed -E "s/(^.*:\ |Mhz.*$)//g") \
+${MIN_MCLK} ${MAX_MCLK} \
 ${MEMORY_CLOCK} \
 ${VRAM_MBW}
 
@@ -329,10 +336,24 @@ esac
 
 printf "\
 L2 Cache Blocks:\t%3d Block
-L2 Cache Size:\t\t%3d MB (%d KB)\n
-" ${NUM_L2_CACHE_BLOCK} $(( ${L2_CACHE} / 1024 / 1024 )) $(( ${L2_CACHE} / 1024 ))
+L2 Cache Size:\t\t%3d MB (%d KB)
+\n" ${NUM_L2_CACHE_BLOCK} $(( ${L2_CACHE} / 1024 / 1024 )) $(( ${L2_CACHE} / 1024 ))
 
-printf -- "Power cap:\t\t%3d W\n\n" $(( $(cat ${PCIBUS}/hwmon/hwmon0/power1_cap) / 1000 / 1000 ))
+POWER_CAP="$(( $(cat ${PCIBUS}/hwmon/hwmon0/power1_cap) / 1000 / 1000 ))"
+printf -- "Power cap:\t\t%3d W\n\n" ${POWER_CAP}
+
+PCIE_SPEED=$(cat ${PCIBUS}/current_link_speed | sed -e "s/\ GT\/s\ PCIe//g")
+case ${PCIE_SPEED} in
+  "2.5")    PCIE_GEN="1" ;;
+  "5.0")    PCIE_GEN="2" ;;
+  "8.0")    PCIE_GEN="3" ;;
+  "16.0")   PCIE_GEN="4" ;;
+esac
+
+printf -- "\
+Card Interface:\t\tPCIe Gen%1d x%-2d
+\n" \
+${PCIE_GEN} $(cat ${PCIBUS}/current_link_width)
 
 if [ ${VRAM_MAX_SIZE} = ${VRAM_VIS_SIZE} ] || [ ${VRAM_ALL_VIS} = 1 ]; then
   printf "AMD Smart Access Memory\n"
@@ -479,7 +500,7 @@ _draw_l2c () {
       l2cb_tmp="${L2CBF}"
     fi
   
-    _repeat_printf " " "$(( ${COL} * 2 - 1 ))"
+    _repeat_printf " " "$(( ${COL} * 2 ))"
     l2c=0
     while [ ${l2c} -lt ${l2cb_tmp} ]; do
       printf "[L2$ %3dK]" ${L2C_SIZE}
@@ -495,12 +516,13 @@ _draw_l2c () {
 
 _diagram_draw_func () {
 
-printf "\n\n## ${GPU_ASIC} Diagram\n\n"
+printf "\n\n## ${GPU_ASIC} Diagram\n"
 
 # ShaderEngine
 se=0
 while [ ${se} -lt ${MAX_SE} ]; do
 
+  printf "\n"
   c=0
   while [ ${c} -lt ${COL} ]; do
     printf " +- ShaderEngine(%02d) " $(( ${c} + ${se} ))
@@ -578,7 +600,7 @@ while [ ${se} -lt ${MAX_SE} ]; do
         break
       fi
   done
-  printf "\n\n"
+  printf "\n"
 
   se=$(( ${se} + ${COL} ))
 done # ShaderEngine end
@@ -587,6 +609,18 @@ done # ShaderEngine end
 
   printf "\n"
 }
+
+# not work with ImageMagick 6.9.11-24
+<<TOIMAGE
+if [ ${IMAGE} = 1 ]; then
+#  OUTPUT="/tmp/$(echo ${GPU_ASIC} | tr '[:upper:]' '[:lower:]')-diagram.png"
+  OUTPUT="/tmp/${GPU_ASIC}-diagram.png"
+  convert -background white -fill black -family "Dejavu Sans Mono" -density 144 label:"$(_diagram_draw_func)" ${OUTPUT}
+  IMAGE_PID="$(echo $!)"
+  wait ${IMAGE_PID}
+  printf "\noutput image to ${OUTPUT}\n\n"
+fi
+TOIMAGE
 
 if [ ${NO_INFO} != 1 ]; then
   _info_list_func
