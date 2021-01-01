@@ -8,28 +8,35 @@
 ## Option
 
 ```
-Usage: amdgpu-diagram-output.sh [OPTION]...
+Usage:
+  amdgpu-diagram-output.sh [FLAGS] [OPTION]...
 
-  --col=NUM			setting number of diagram column (default: 2)
+FLAGS:
   -ni, -noinfo			do not display spec list
   -nd, -nodia			do not display diagram
   -nogfx			do not display gfx block
   				  (RB, Rasterizer/Primitive, Geometry)
+  -rbplus			RB+ force-enable  (RB = 4ROP, RB+ = 8ROP)
+  -h, --help			display this help and exit
+
+OPTIONS:
+  --col=NUM			setting number of diagram column (default: 2)
   --arch=gfx(9|10|10.3)		override GFX IP/Architecture
   --se=NUM			override number of ShaderEngine
   --sa-per-se=NUM		override number of ShaderArray per ShaderEngine
   --cu-per-sa=NUM		override number of CU per ShaderArray
+  --min-cu-per-sa=NUM		override number of min CU per ShaderArray
   --rb=NUM			override number of RenderBackend
-  -rbplus			RB+ force-enable  (RB = 4ROP, RB+ = 8ROP)
-  
-  -h, --help			display this help and exit
+  --l2c-block=NUM		override number of L2cache block
+  --l2c-cache=NUM		override L2cache size (MB)
+
 ```
 
 ## Result Example
 
 ```
 
-Driver Version:		Mesa 21.0.0-devel (git-eec9d67e44)
+Driver Version:		Mesa 21.0.0-devel (git-448e60314a)
 
 GPU ASIC:		POLARIS11
 Chip class:		GFX8
@@ -58,6 +65,10 @@ Peak VRAM Bandwidth:	   112.00 GB/s
 L2 Cache Blocks:	  4 Block
 L2 Cache Size:		  1 MB (1024 KB)
 
+Power cap:		 48 W
+
+Card Interface:		PCIe Gen3 x8 
+
 AMD Smart Access Memory
 
 
@@ -78,7 +89,6 @@ AMD Smart Access Memory
  | +--------------------------------+ |  | +--------------------------------+ | 
  |      [- Geometry Processor -]      |  |      [- Geometry Processor -]      | 
  +------------------------------------+  +------------------------------------+ 
-
-   [L2$ 256K]    [L2$ 256K]    [L2$ 256K]    [L2$ 256K]    
+    [L2$ 256K]      [L2$ 256K]      [L2$ 256K]      [L2$ 256K]      
 
 ```

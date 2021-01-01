@@ -6,7 +6,7 @@ MESA_DRIVER_VER="$(echo ${GPUINFO} | grep "OpenGL core profile version" | sed -e
 
 _repeat_printf () {
   i=0
-  while [ ${i} -lt ${2} ]; do
+  while [ "${i}" -lt "${2}" ]; do
     printf -- "${1}"
     i=$(( ${i} + 1 ))
   done
@@ -14,7 +14,7 @@ _repeat_printf () {
 
 _arg_judge () {
   NUM="$(echo ${1} | grep -c "[^0-9]")"
-  if [ ${NUM} -gt 0 ]; then
+  if [ "${NUM}" -gt 0 ]; then
     printf -- "\n  Error option: ${2}\n"
     _option_help
     exit 1
@@ -45,19 +45,24 @@ _debug_spec_func () {
 
 _option_help () {
 
-printf -- "\n\nUsage: $(basename ${0}) [OPTION]...\n
-  --col=NUM\t\t\tsetting number of diagram column (default: 2)
+printf -- "\nUsage:\n  $(basename ${0}) [FLAGS] [OPTION]...
+\nFLAGS:
   -ni, -noinfo\t\t\tdo not display spec list
   -nd, -nodia\t\t\tdo not display diagram
   -nogfx\t\t\tdo not display gfx block
   \t\t\t\t  (RB, Rasterizer/Primitive, Geometry)
+  -rbplus\t\t\tRB+ force-enable  (RB = 4ROP, RB+ = 8ROP)
+  -h, --help\t\t\tdisplay this help and exit
+\nOPTIONS:
+  --col=NUM\t\t\tsetting number of diagram column (default: 2)
   --arch=gfx(9|10|10.3)\t\toverride GFX IP/Architecture
   --se=NUM\t\t\toverride number of ShaderEngine
   --sa-per-se=NUM\t\toverride number of ShaderArray per ShaderEngine
   --cu-per-sa=NUM\t\toverride number of CU per ShaderArray
+  --min-cu-per-sa=NUM\t\toverride number of min CU per ShaderArray
   --rb=NUM\t\t\toverride number of RenderBackend
-  -rbplus\t\t\tRB+ force-enable  (RB = 4ROP, RB+ = 8ROP)
-  \n  -h, --help\t\t\tdisplay this help and exit
+  --l2c-block=NUM\t\toverride number of L2cache block
+  --l2c-cache=NUM\t\toverride L2cache size (MB)
 \n"
 #  \n  -image\t\t\toutput image of diagram
 #  \t\t\t\t  output to: /tmp/<GPU_NAME>-diagram.png
@@ -132,13 +137,13 @@ for opt in ${@}; do
   "-nogfx")
     HAS_GFX="0" ;;
   "--arch="*)
-    if [ ${opt#--arch=} = "gfx9" ]; then
+    if [ "${opt#--arch=}" = "gfx9" ]; then
       GPU_ASIC="VEGA10 pseudo"
       CHIP_CLASS="11"
-    elif [ ${opt#--arch=} = "gfx10" ]; then
+    elif [ "${opt#--arch=}" = "gfx10" ]; then
       GPU_ASIC="NAVI10 pseudo"
       CHIP_CLASS="12"
-    elif [ ${opt#--arch=} = "gfx10.3" ]; then
+    elif [ "${opt#--arch=}" = "gfx10.3" ]; then
       GPU_ASIC="SIENNA_CICHLID pseudo"
       CHIP_CLASS="13"
       RB_PLUS="1"
@@ -159,11 +164,20 @@ for opt in ${@}; do
     _arg_judge ${opt#--cu-per-sa=} ${opt}
     CU_PER_SA="${opt#--cu-per-sa=}" 
     MIN_CU_PER_SA="${opt#--cu-per-sa=}" ;;
+  "--min-cu-per-sa="*)
+    _arg_judge ${opt#--min-cu-per-sa=} ${opt}
+    MIN_CU_PER_SA="${opt#--min-cu-per-sa=}" ;;
   "--rb="*)
     _arg_judge ${opt#--rb=} ${opt}
     NUM_RB="${opt#--rb=}" ;;
   "-rbplus")
     RB_PLUS="1" ;;
+  "--l2c-block="*)
+    _arg_judge ${opt#--l2c-block=} ${opt}
+    NUM_L2_CACHE_BLOCK="${opt#--l2c-block=}" ;;
+  "--l2c-size="*)
+    _arg_judge ${opt#--l2c-size=} ${opt}
+    L2_CACHE="$(( ${opt#--l2c-size=} * 1024 * 1024))" ;;
   "-image")
     IMAGE=1 ;;
   "-h"|"--help")
@@ -176,13 +190,13 @@ for opt in ${@}; do
   esac
 done
 
-if [ ${GPU_ASIC} = "ARCTURUS" ]; then
+if [ "${GPU_ASIC}" = "ARCTURUS" ]; then
   HAS_GFX="0"
 fi
 
 _info_list_func () {
 
-if [ ${DEDICATED_VRAM} = 1 ]; then
+if [ "${DEDICATED_VRAM}" = "1" ]; then
   GPU_TYPE="Discrete GPU"
 else
   GPU_TYPE="APU"
@@ -215,13 +229,13 @@ Marketing Name:\t\t${CARD_NAME}
 GPU Type:\t\t${GPU_TYPE}
 \n"
 
-if [ ${CHIP_CLASS} -ge 12 ] && [ ${CU_PER_SA} != ${MIN_CU_PER_SA} ]; then
+if [ "${CHIP_CLASS}" -ge 12 ] && [ "${CU_PER_SA}" != "${MIN_CU_PER_SA}" ]; then
   NUM_CU="$(( ${MAX_SE} * ( ${CU_PER_SA} + ${MIN_CU_PER_SA} ) ))"
 else
   NUM_CU="$(( ${MAX_SE} * ${SA_PER_SE} * ${CU_PER_SA} ))"
 fi
 
-if [ ${CHIP_CLASS} -ge 12 ]; then
+if [ "${CHIP_CLASS}" -ge 12 ]; then
   printf "WorkGroup Processors:\t %3d WGP (%d CU)\n" $(( ${NUM_CU} / 2)) ${NUM_CU}
 else 
   printf "Compute Units:\t\t%4d CU\n" ${NUM_CU}
@@ -237,7 +251,7 @@ ${MIN_SCLK} ${MAX_SCLK} \
 ${MAX_SHADER_CLOCK}
 
 PEAK_FP32="$(echo "scale=2;${NUM_CU} * 64 * ${MAX_SHADER_CLOCK} * 2 / 1000 / 1000" | bc )"
-if [ ${CHIP_CLASS} -ge 11 ]; then
+if [ "${CHIP_CLASS}" -ge 11 ]; then
   PEAK_FP16="$(echo "scale=2; ${PEAK_FP32} * 2" | bc )"
 else
   PEAK_FP16="${PEAK_FP32}"
@@ -250,7 +264,7 @@ Peak FP32:\t\t%5.2f TFlops
 ${PEAK_FP16} \
 ${PEAK_FP32}
 
-if [ ${RB_PLUS} = 0 ]; then
+if [ "${RB_PLUS}" = 0 ]; then
   NUM_ROP="$(( ${NUM_RB} * 4 ))"
 else
   NUM_ROP="$(( ${NUM_RB} * 8 ))"
@@ -270,7 +284,7 @@ $(echo "scale=2;${NUM_CU} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc) \
 #  https://gitlab.freedesktop.org/mesa/drm/-/blob/2420768d023e0c257d2752a5c212d5dd3528a249/include/drm/amdgpu_drm.h#L938
 #  https://cgit.freedesktop.org/~agd5f/linux/commit/drivers/gpu/drm/amd?h=amd-staging-drm-next&id=a01dd4fe8e62b18a16edccda840361c022940125
 
-case ${VRAM_TYPE} in
+case "${VRAM_TYPE}" in
   1) #  GDDR1
   VRAM_MODULE="GDDR1" ;;
   2) #  DDR2
@@ -299,7 +313,7 @@ case ${VRAM_TYPE} in
   VRAM_MODULE="Unknown" ;;
 esac
 
-if [ ${VRAM_TYPE} -le 2 ] || [ ${VRAM_TYPE} = 4 ]; then
+if [ "${VRAM_TYPE}" -le 2 ] || [ "${VRAM_TYPE}" = 4 ]; then
   VRAM_MBW="Unknown"
 else
   VRAM_MBW="$(( ${VRAM_BIT_WIDTH} / 8 * ${DATA_RATE} / 1000 ))"
@@ -343,7 +357,7 @@ POWER_CAP="$(( $(cat ${PCIBUS}/hwmon/hwmon0/power1_cap) / 1000 / 1000 ))"
 printf -- "Power cap:\t\t%3d W\n\n" ${POWER_CAP}
 
 PCIE_SPEED=$(cat ${PCIBUS}/current_link_speed | sed -e "s/\ GT\/s\ PCIe//g")
-case ${PCIE_SPEED} in
+case "${PCIE_SPEED}" in
   "2.5")    PCIE_GEN="1" ;;
   "5.0")    PCIE_GEN="2" ;;
   "8.0")    PCIE_GEN="3" ;;
