@@ -72,6 +72,7 @@ printf -- "\nUsage:\n  $(basename ${0}) [FLAGS] [OPTION]...
 amdgpu_var () {
   export ${1}=0
   export ${1}="$( echo ${GPUINFO} | grep " ${2} =" | sed -e "s/^.*${2}\ \=\ //g" )"
+  # export ${1}="$( echo ${GPUINFO} | grep " ${2} =" | cut -d " " -f7 )"
   #   debug
   #   eval echo "${1} : "'$'${1}""
 }
@@ -190,10 +191,6 @@ for opt in ${@}; do
   esac
 done
 
-if [ "${GPU_ASIC}" = "ARCTURUS" ]; then
-  HAS_GFX="0"
-fi
-
 _info_list_func () {
 
 if [ "${DEDICATED_VRAM}" = "1" ]; then
@@ -203,8 +200,7 @@ else
 fi
 
 #  https://gitlab.freedesktop.org/mesa/mesa/-/blob/master/src/amd/common/amd_family.h
-
-case ${CHIP_CLASS} in
+case "${CHIP_CLASS}" in
   1)    DEC_CHIP_CLASS="R300" ;;
   2)    DEC_CHIP_CLASS="R400" ;;
   3)    DEC_CHIP_CLASS="R500" ;;
@@ -283,34 +279,33 @@ $(echo "scale=2;${NUM_CU} * 4 * ${MAX_SHADER_CLOCK} / 1000" | bc) \
 
 #  https://gitlab.freedesktop.org/mesa/drm/-/blob/2420768d023e0c257d2752a5c212d5dd3528a249/include/drm/amdgpu_drm.h#L938
 #  https://cgit.freedesktop.org/~agd5f/linux/commit/drivers/gpu/drm/amd?h=amd-staging-drm-next&id=a01dd4fe8e62b18a16edccda840361c022940125
-
 case "${VRAM_TYPE}" in
   1) #  GDDR1
-  VRAM_MODULE="GDDR1" ;;
+    VRAM_MODULE="GDDR1" ;;
   2) #  DDR2
-  VRAM_MODULE="DDR2" ;;
+    VRAM_MODULE="DDR2" ;;
   3) #  GDDR3
-  VRAM_MODULE="GDDR3"
-  DATA_RATE="$(( ${MEMORY_CLOCK} * 2 ))" ;;
+    VRAM_MODULE="GDDR3"
+    DATA_RATE="$(( ${MEMORY_CLOCK} * 2 ))" ;;
   4)
-  VRAM_MODULE="GDDR4" ;;
+    VRAM_MODULE="GDDR4" ;;
   5) #  GDDR5
-  VRAM_MODULE="GDDR5"
-  DATA_RATE="$(( ${MEMORY_CLOCK} * 4 ))" ;;
+    VRAM_MODULE="GDDR5"
+    DATA_RATE="$(( ${MEMORY_CLOCK} * 4 ))" ;;
   6) #  HBM/2
-  VRAM_MODULE="HBM"
-  DATA_RATE="$(( ${MEMORY_CLOCK} * 2 ))" ;;
+    VRAM_MODULE="HBM"
+    DATA_RATE="$(( ${MEMORY_CLOCK} * 2 ))" ;;
   9) #  GDDR6
-  VRAM_MODULE="GDDR6"
-  DATA_RATE="$(( ${MEMORY_CLOCK} * 2 * 8 ))" ;;
+    VRAM_MODULE="GDDR6"
+    DATA_RATE="$(( ${MEMORY_CLOCK} * 2 * 8 ))" ;;
   7) #  DDR3/4
-  VRAM_MODULE="DDR3"
-  DATA_RATE="$(( ${MEMORY_CLOCK} ))" ;;
+    VRAM_MODULE="DDR3"
+    DATA_RATE="$(( ${MEMORY_CLOCK} ))" ;;
   8) #  DDR3/4
-  VRAM_MODULE="DDR4"
-  DATA_RATE="$(( ${MEMORY_CLOCK} ))" ;;
+    VRAM_MODULE="DDR4"
+    DATA_RATE="$(( ${MEMORY_CLOCK} ))" ;;
   0|*)
-  VRAM_MODULE="Unknown" ;;
+    VRAM_MODULE="Unknown" ;;
 esac
 
 if [ "${VRAM_TYPE}" -le 2 ] || [ "${VRAM_TYPE}" = 4 ]; then
@@ -339,7 +334,7 @@ ${VRAM_MBW}
 #  correct AMDGPU L2cache Size, maybe (GFX9+)
 #  https://gitlab.freedesktop.org/mesa/mesa/-/blob/master/src/amd/common/ac_gpu_info.c
 
-case ${GPU_ASIC} in
+case "${GPU_ASIC}" in
   RAVEN2)
     L2_CACHE="$((  512 * 1024 ))" ;;
   RAVEN|RENOIR)
@@ -356,7 +351,7 @@ L2 Cache Size:\t\t%3d MB (%d KB)
 POWER_CAP="$(( $(cat ${PCIBUS}/hwmon/hwmon0/power1_cap) / 1000 / 1000 ))"
 printf -- "Power cap:\t\t%3d W\n\n" ${POWER_CAP}
 
-PCIE_SPEED=$(cat ${PCIBUS}/current_link_speed | sed -e "s/\ GT\/s\ PCIe//g")
+PCIE_SPEED="$(cat ${PCIBUS}/current_link_speed | sed -e "s/\ GT\/s\ PCIe//g")"
 case "${PCIE_SPEED}" in
   "2.5")    PCIE_GEN="1" ;;
   "5.0")    PCIE_GEN="2" ;;
@@ -375,7 +370,7 @@ fi
 }
 
 _draw_cu_wgp () {
-  if [ ${CHIP_CLASS} -ge 12 ]; then
+  if [ "${CHIP_CLASS}" -ge 12 ]; then
     UNIT_NAME="WGP"
     tmp_unit_count="$(( ${CU_PER_SA} / 2 ))"
   else
@@ -383,25 +378,21 @@ _draw_cu_wgp () {
     tmp_unit_count="${CU_PER_SA}"
   fi
 
-  if [ ${sh} = 0 ] && [ ${CU_PER_SA} != ${MIN_CU_PER_SA} ]; then
+  if [ "${sh}" = 0 ] && [ "${CU_PER_SA}" != "${MIN_CU_PER_SA}" ]; then
     tmp_unit_count="$(( ${MIN_CU_PER_SA} / 2 ))"
   fi
 
   unit_count=0
-  while [ ${unit_count} -lt ${tmp_unit_count} ]; do
+  while [ "${unit_count}" -lt "${tmp_unit_count}" ]; do
     c=0
-    while [ ${c} -lt ${COL} ]; do
-      printf " | | "
-      _repeat_printf "=" "4"
-      printf "  "
-      _repeat_printf "=" "4"
-      printf "  %-3s(%02d) " ${UNIT_NAME} ${unit_count}
-      _repeat_printf "=" "4"
-      printf "  "
-      _repeat_printf "=" "4"
-      printf " | | "
+    while [ "${c}" -lt "${COL}" ]; do
+      printf " | |  "
+      printf "==== ===="
+      printf "  %-3s(%02d) " "${UNIT_NAME}" "${unit_count}"
+      printf "==== ===="
+      printf "  | | "
       c=$(( ${c} + 1 ))
-        if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
+        if [ "$(( ${c} + ${se} ))" -ge "${MAX_SE}" ]; then
           break
         fi
     done
@@ -413,31 +404,31 @@ _draw_cu_wgp () {
 _draw_rb () {
   RBF="${RB_PER_SE}"
 
-  if [ ${RB_PLUS} = 1 ]; then
+  if [ "${RB_PLUS}" = 1 ]; then
     RB_TYPE="[ RB+ ]"
   else
     RB_TYPE="[ RB ]"
   fi
 
-  while [ ${RB_PER_SA} -gt 0 ]; do
+  while [ "${RB_PER_SA}" -gt 0 ]; do
     c=0
-    while [ ${c} -lt ${COL} ]; do
+    while [ "${c}" -lt "${COL}" ]; do
       printf " | |  "
   
-      if [ ${RB_PER_SA} -gt 4 ]; then
+      if [ "${RB_PER_SA}" -gt 4 ]; then
         rb_tmp="4"
       else
         rb_tmp="${RB_PER_SA}"
       fi
   
     rbcount=0
-    while [ ${rbcount} -lt ${rb_tmp} ]; do
+    while [ "${rbcount}" -lt "${rb_tmp}" ]; do
       printf "%-7s" ${RB_TYPE}
       rbcount=$(( ${rbcount} + 1 ))
     done
   
     fill=${rb_tmp}
-    while [ ${fill} -lt 4 ]; do
+    while [ "${fill}" -lt 4 ]; do
       _repeat_printf " " "7"
       fill=$(( ${fill} + 1 ))
     done
@@ -445,7 +436,7 @@ _draw_rb () {
     printf "  | | "
   
     c=$(( ${c} + 1 ))
-      if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
+      if [ "$(( ${c} + ${se} ))" -ge "${MAX_SE}" ]; then
         break
       fi
     done
@@ -458,14 +449,14 @@ _draw_rb () {
 _draw_rdna_l1c () {
   RDNA_L1C_SIZE="128"
   c=0
-  while [ ${c} -lt ${COL} ]; do
+  while [ "${c}" -lt "${COL}" ]; do
     printf " | |"
     _repeat_printf " " "8"
     printf "[- L1$ ${RDNA_L1C_SIZE}KB -]"
     _repeat_printf " " "9"
     printf "| | "
     c=$(( ${c} + 1 ))
-      if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
+      if [ "$(( ${c} + ${se} ))" -ge "${MAX_SE}" ]; then
         break
       fi
   done
@@ -474,12 +465,10 @@ _draw_rdna_l1c () {
 
 _draw_raster_prim () {
   c=0
-  while [ ${c} -lt ${COL} ]; do
-    printf " | |  "
-    printf "[ Rasterizer/Primitive Unit ]"
-    printf " | | "
+  while [ "${c}" -lt "${COL}" ]; do
+    printf " | |  [ Rasterizer/Primitive Unit ] | | "
     c=$(( ${c} + 1 ))
-      if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
+      if [ "$(( ${c} + ${se} ))" -ge "${MAX_SE}" ]; then
         break
       fi
   done
@@ -488,14 +477,14 @@ _draw_raster_prim () {
 
 _draw_geometry () {
   c=0
-  while [ ${c} -lt ${COL} ]; do
+  while [ "${c}" -lt "${COL}" ]; do
     printf " |"
     _repeat_printf " " "6"
     printf "[- Geometry Processor -]"
     _repeat_printf " " "6"
     printf "| "
     c=$(( ${c} + 1 ))
-    if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
+    if [ "$(( ${c} + ${se} ))" -ge "${MAX_SE}" ]; then
       break
     fi
   done
@@ -506,19 +495,18 @@ _draw_l2c () {
   L2C_SIZE="$(( ${L2_CACHE} / ${NUM_L2_CACHE_BLOCK} / 1024 ))"
   L2CBF="${NUM_L2_CACHE_BLOCK}"
   L2C_COL="4"
-  while [ ${L2CBF} -gt 0 ]; do
+  while [ "${L2CBF}" -gt 0 ]; do
   
-    if [ ${L2CBF} -gt ${L2C_COL} ]; then
+    if [ "${L2CBF}" -gt "${L2C_COL}" ]; then
       l2cb_tmp="${L2C_COL}"
     else
       l2cb_tmp="${L2CBF}"
     fi
   
-    _repeat_printf " " "$(( ${COL} * 2 ))"
     l2c=0
-    while [ ${l2c} -lt ${l2cb_tmp} ]; do
+    while [ "${l2c}" -lt "${l2cb_tmp}" ]; do
+      _repeat_printf " " "$( echo "${COL}^3" | bc )"
       printf "[L2$ %3dK]" ${L2C_SIZE}
-      _repeat_printf " " "$(( ${COL} * 3 ))"
       l2c=$(( ${l2c} + 1 ))
     done
     printf "\n"
@@ -534,16 +522,16 @@ printf "\n\n## ${GPU_ASIC} Diagram\n"
 
 # ShaderEngine
 se=0
-while [ ${se} -lt ${MAX_SE} ]; do
+while [ "${se}" -lt "${MAX_SE}" ]; do
 
   printf "\n"
   c=0
-  while [ ${c} -lt ${COL} ]; do
+  while [ "${c}" -lt "${COL}" ]; do
     printf " +- ShaderEngine(%02d) " $(( ${c} + ${se} ))
     _repeat_printf "-" "17"
     printf "+ "
     c=$(( ${c} + 1 ))
-    if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
+    if [ "$(( ${c} + ${se} ))" -ge "${MAX_SE}" ]; then
       break
     fi
   done
@@ -551,15 +539,15 @@ while [ ${se} -lt ${MAX_SE} ]; do
  
   # ShderArray
   sh=0
-  while [ ${sh} -lt ${SA_PER_SE} ]; do
+  while [ "${sh}" -lt "${SA_PER_SE}" ]; do
 
   c=0
-  while [ ${c} -lt ${COL} ]; do
+  while [ "${c}" -lt "${COL}" ]; do
     printf -- " | +- ShaderArray(%02d) " ${sh}
     _repeat_printf "-" "14"
     printf "+ | "
     c=$(( ${c} + 1 ))
-      if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
+      if [ "$(( ${c} + ${se} ))" -ge "${MAX_SE}" ]; then
         break
       fi
   done
@@ -569,28 +557,28 @@ while [ ${se} -lt ${MAX_SE} ]; do
 
   RB_PER_SA="$(( ${NUM_RB} / ${MAX_SE} / ${SA_PER_SE} ))"
 
-  if [ ${RB_PER_SA} -ge 1 ] && \
-     [ ${HAS_GFX} = 1 ] && \
-     [ $(( ${NUM_RB} % (${MAX_SE} * ${SA_PER_SE}) )) -lt 1 ]; then
+  if [ "${RB_PER_SA}" -ge 1 ] && \
+     [ "${HAS_GFX}" = 1 ] && \
+     [ "$(( ${NUM_RB} % (${MAX_SE} * ${SA_PER_SE}) ))" -lt 1 ]; then
     _draw_rb
   fi
 
-  if [ ${CHIP_CLASS} -ge 12 ]; then
+  if [ "${CHIP_CLASS}" -ge 12 ]; then
     _draw_rdna_l1c
   fi
 
-  if [ ${HAS_GFX} = 1 ]; then
+  if [ "${HAS_GFX}" = 1 ]; then
     _draw_raster_prim
   fi
 
   # ShaderArray last line
   c=0
-  while [ ${c} -lt ${COL} ]; do
+  while [ "${c}" -lt "${COL}" ]; do
     printf " | +"
     _repeat_printf "-" "32"
     printf "+ | "
     c=$(( ${c} +  1 ))
-      if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
+      if [ "$(( ${c} + ${se} ))" -ge "${MAX_SE}" ]; then
         break
       fi
   done
@@ -599,18 +587,18 @@ while [ ${se} -lt ${MAX_SE} ]; do
   sh=$(( ${sh} + 1 ))
   done # ShaderArray end
 
-  if [ ${HAS_GFX} = 1 ]; then
+  if [ "${HAS_GFX}" = 1 ]; then
     _draw_geometry
   fi
 
   # ShadeEngine last line
   c=0
-  while [ ${c} -lt ${COL} ]; do
+  while [ "${c}" -lt "${COL}" ]; do
     printf " +"
     _repeat_printf "-" "36"
     printf "+ "
     c=$(( ${c} +  1 ))
-      if [ $(( ${c} + ${se} )) -ge ${MAX_SE} ]; then
+      if [ "$(( ${c} + ${se} ))" -ge "${MAX_SE}" ]; then
         break
       fi
   done
@@ -636,10 +624,10 @@ if [ ${IMAGE} = 1 ]; then
 fi
 TOIMAGE
 
-if [ ${NO_INFO} != 1 ]; then
+if [ "${NO_INFO}" != 1 ]; then
   _info_list_func
 fi
 
-if [ ${NO_DIAGRAM} != 1 ]; then
+if [ "${NO_DIAGRAM}" != 1 ]; then
   _diagram_draw_func
 fi
