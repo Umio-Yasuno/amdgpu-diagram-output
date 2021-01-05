@@ -49,9 +49,10 @@ printf -- "\nUsage:\n  $(basename ${0}) [FLAGS] [OPTION]...
 \nFLAGS:
   -ni, -noinfo\t\t\tdo not display spec list
   -nd, -nodia\t\t\tdo not display diagram
-  -nogfx\t\t\tdo not display gfx block
+  -nogfx\t\t\tdo not display gfx block (for diagram)
   \t\t\t\t  (RB, Rasterizer/Primitive, Geometry)
-  -rbplus\t\t\tRB+ force-enable  (RB = 4ROP, RB+ = 8ROP)
+  -rbplus\t\t\tRB+ force-enable (for override)
+  \t\t\t\t  (RB = 4ROP, RB+ = 8ROP) 
   -h, --help\t\t\tdisplay this help and exit
 \nOPTIONS:
   --col=NUM\t\t\tsetting number of diagram column (default: 2)
