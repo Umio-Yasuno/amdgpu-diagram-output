@@ -341,7 +341,7 @@ ${VRAM_MBW}
 
 case "${GPU_ASIC}" in
   RAVEN2)
-    L2_CACHE="$((  512 * 1024 ))" ;;
+    L2_CACHE="$((  128 * 1024 ))" ;;
   RAVEN|RENOIR)
     L2_CACHE="$(( 1024 * 1024 ))" ;;
   VEGA12|NAVI14)
