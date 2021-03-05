@@ -356,7 +356,9 @@ L2 Cache Size:\t\t%3d MB (%d KB)
 POWER_CAP="$(( $(cat ${PCIBUS}/hwmon/hwmon0/power1_cap) / 1000 / 1000 ))"
 printf -- "Power cap:\t\t%3d W\n\n" ${POWER_CAP}
 
-PCIE_SPEED="$(cat ${PCIBUS}/current_link_speed | sed -e "s/\ GT\/s\ PCIe//g")"
+PCIE_SPEED="$(tail -n1 ${PCIBUS}/pp_dpm_pcie | sed -E "s/([0-9]:\ |GT\/s.*$)//g")"
+PCIE_WIDTH="$(tail -n1 ${PCIBUS}/pp_dpm_pcie | sed -E "s/(^.*,\ |\ \*$)//g")"
+
 case "${PCIE_SPEED}" in
   "2.5")    PCIE_GEN="1" ;;
   "5.0")    PCIE_GEN="2" ;;
@@ -365,9 +367,9 @@ case "${PCIE_SPEED}" in
 esac
 
 printf -- "\
-Card Interface:\t\tPCIe Gen%1d x%-2d
+Card Interface:\t\tPCIe Gen%1d %-3s
 \n" \
-${PCIE_GEN} $(cat ${PCIBUS}/current_link_width)
+"${PCIE_GEN}" "${PCIE_WIDTH}"
 
 if [ ${VRAM_MAX_SIZE} = ${VRAM_VIS_SIZE} ] || [ ${VRAM_ALL_VIS} = 1 ]; then
   printf "AMD Smart Access Memory\n"
@@ -617,7 +619,7 @@ done # ShaderEngine end
   printf "\n"
 }
 
-  if [ ${IMAGE} = 1 ]; then
+  if [ "${IMAGE}" = 1 ]; then
 #  OUTPUT="/tmp/$(echo ${GPU_ASIC} | tr '[:upper:]' '[:lower:]')-diagram.png"
     OUTPUT="/tmp/${GPU_ASIC}-diagram.png"
     convert -border 16x16 -bordercolor white \
@@ -635,7 +637,7 @@ if [ "${NO_DIAGRAM}" != 1 ]; then
   _diagram_draw_func
 fi
 
-  if [ ${IMAGE} = 1 ]; then
+  if [ "${IMAGE}" = 1 ]; then
     wait ${IMAGE_PID}
     printf "\noutput to: ${OUTPUT}\n\n"
   fi
