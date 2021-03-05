@@ -16,7 +16,7 @@ FLAGS:
   -nd, -nodia			do not display diagram
   -nogfx			do not display gfx block
   				  (RB, Rasterizer/Primitive, Geometry)
-  -rbplus			RB+ force-enable  (RB = 4ROP, RB+ = 8ROP)
+  -rbplus			RB+ enable (for override) (RB = 4ROP, RB+ = 8ROP)
   -h, --help			display this help and exit
 
 OPTIONS:
@@ -29,6 +29,10 @@ OPTIONS:
   --rb=NUM			override number of RenderBackend
   --l2c-block=NUM		override number of L2cache block
   --l2c-cache=NUM		override L2cache size (MB)
+
+  -image			output image of diagram
+  				      output to: /tmp/<GPU_NAME>-diagram.png
+  				      requirement: imagemagick, "Dejavu Sans Mono" font
 
 ```
 

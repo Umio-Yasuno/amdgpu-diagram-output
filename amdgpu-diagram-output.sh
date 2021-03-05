@@ -55,7 +55,7 @@ printf -- "\nUsage:\n  $(basename ${0}) [FLAGS] [OPTION]...
   -nd, -nodia\t\t\tdo not display diagram
   -nogfx\t\t\tdo not display gfx block (for diagram)
   \t\t\t\t  (RB, Rasterizer/Primitive, Geometry)
-  -rbplus\t\t\tRB+ force-enable (for override)
+  -rbplus\t\t\tRB+ (for override)
   \t\t\t\t  (RB = 4ROP, RB+ = 8ROP) 
   -h, --help\t\t\tdisplay this help and exit
 \nOPTIONS:
@@ -67,11 +67,11 @@ printf -- "\nUsage:\n  $(basename ${0}) [FLAGS] [OPTION]...
   --min-cu-per-sa=NUM\t\toverride number of min CU per ShaderArray
   --rb=NUM\t\t\toverride number of RenderBackend
   --l2c-block=NUM\t\toverride number of L2cache block
-  --l2c-cache=NUM\t\toverride L2cache size (MB)
+  --l2c-size=NUM\t\toverride L2cache size (KiB)
+  \n  -image\t\t\toutput image of diagram
+  \t\t\t\t  output to: /tmp/<GPU_NAME>-diagram.png
+  \t\t\t\t  requirement: imagemagick, \"Dejavu Sans Mono\" font
 \n"
-#  \n  -image\t\t\toutput image of diagram
-#  \t\t\t\t  output to: /tmp/<GPU_NAME>-diagram.png
-#  \t\t\t\t  requirement: imagemagick, \"Dejavu Sans Mono\" font
 }
 
 amdgpu_var () {
@@ -178,12 +178,12 @@ for opt in ${@}; do
     NUM_RB="${opt#--rb=}" ;;
   "-rbplus")
     RB_PLUS="1" ;;
-  "--l2c-block="*)
+  "--l2c-block="*|"--l2cb="*)
     _arg_judge ${opt#--l2c-block=} ${opt}
     NUM_L2_CACHE_BLOCK="${opt#--l2c-block=}" ;;
-  "--l2c-size="*)
+  "--l2c-size="*|"--l2cs="*)
     _arg_judge ${opt#--l2c-size=} ${opt}
-    L2_CACHE="$(( ${opt#--l2c-size=} * 1024 * 1024))" ;;
+    L2_CACHE="$(( ${opt#--l2c-size=} * 1024))" ;;
   "-image")
     IMAGE=1 ;;
   "-h"|"--help")
@@ -617,17 +617,15 @@ done # ShaderEngine end
   printf "\n"
 }
 
-# not work with ImageMagick 6.9.11-24
-<<TOIMAGE
-if [ ${IMAGE} = 1 ]; then
+  if [ ${IMAGE} = 1 ]; then
 #  OUTPUT="/tmp/$(echo ${GPU_ASIC} | tr '[:upper:]' '[:lower:]')-diagram.png"
-  OUTPUT="/tmp/${GPU_ASIC}-diagram.png"
-  convert -background white -fill black -family "Dejavu Sans Mono" -density 144 label:"$(_diagram_draw_func)" ${OUTPUT}
-  IMAGE_PID="$(echo $!)"
-  wait ${IMAGE_PID}
-  printf "\noutput image to ${OUTPUT}\n\n"
-fi
-TOIMAGE
+    OUTPUT="/tmp/${GPU_ASIC}-diagram.png"
+    convert -border 16x16 -bordercolor white \
+      -background white -fill black \
+      -font "Dejavu Sans Mono" -density 144 \
+      pango:"$(_diagram_draw_func)" ${OUTPUT} &
+    IMAGE_PID="$(echo $!)"
+  fi
 
 if [ "${NO_INFO}" != 1 ]; then
   _info_list_func
@@ -636,3 +634,8 @@ fi
 if [ "${NO_DIAGRAM}" != 1 ]; then
   _diagram_draw_func
 fi
+
+  if [ ${IMAGE} = 1 ]; then
+    wait ${IMAGE_PID}
+    printf "\noutput to: ${OUTPUT}\n\n"
+  fi
