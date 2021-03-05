@@ -512,7 +512,7 @@ _draw_l2c () {
   
     l2c=0
     while [ "${l2c}" -lt "${l2cb_tmp}" ]; do
-      _repeat_printf " " "$( echo "${COL}^3" | bc )"
+      _repeat_printf " " "$( echo "${COL}^2" | bc )"
       printf "[L2$ %3dK]" ${L2C_SIZE}
       l2c=$(( ${l2c} + 1 ))
     done
@@ -527,6 +527,12 @@ _diagram_draw_func () {
 
 printf "\n\n## ${GPU_ASIC} Diagram\n"
 
+row_count=0
+ROW_HALF="$(( ${MAX_SE} / ${COL} / 2))"
+
+if [ "${ROW_HALF}" = 0 ]; then
+  ROW_HALF="1"
+fi
 # ShaderEngine
 se=0
 while [ "${se}" -lt "${MAX_SE}" ]; do
@@ -612,9 +618,14 @@ while [ "${se}" -lt "${MAX_SE}" ]; do
   printf "\n"
 
   se=$(( ${se} + ${COL} ))
-done # ShaderEngine end
+  row_count="$(( ${row_count} + 1 ))"
 
-  _draw_l2c
+  if [ "${row_count}" = "${ROW_HALF}" ]; then
+    printf "\n"
+    _draw_l2c
+  fi
+
+done # ShaderEngine end
 
   printf "\n"
 }
