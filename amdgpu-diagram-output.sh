@@ -88,6 +88,8 @@ amdgpu_var "GPU_ASIC" "name"
 amdgpu_var "CARD_NAME" "marketing_name"
 amdgpu_var "GPU_FAMILY" "family"
 amdgpu_var "CHIP_CLASS" "chip_class"
+amdgpu_var "DID" "pci_id"
+amdgpu_var "RID" "pci_rev_id"
 
 amdgpu_var "MAX_SE" "max_se"
 amdgpu_var "CU_PER_SA" "max_good_cu_per_sa"
@@ -231,6 +233,7 @@ GPU ASIC:\t\t${GPU_ASIC}
 Chip class:\t\t${DEC_CHIP_CLASS}
 Marketing Name:\t\t${CARD_NAME}
 GPU Type:\t\t${GPU_TYPE}
+DeviceID:\t\t${DID}:${RID}
 \n"
 
 if [ "${CHIP_CLASS}" -ge 12 ] && [ "${CU_PER_SA}" != "${MIN_CU_PER_SA}" ]; then
