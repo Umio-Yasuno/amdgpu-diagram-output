@@ -1,0 +1,187 @@
+name of display: :0
+Device info:
+    pci (domain:bus:dev.func): 0000:08:00.0
+    name = POLARIS11
+    marketing_name = Radeon RX 560 Series
+    is_pro_graphics = 0
+    pci_id = 0x67ff
+    pci_rev_id = 0xcf
+    family = 64
+    chip_class = 10
+    family_id = 130
+    chip_external_rev = 91
+    clock_crystal_freq = 25000
+Features:
+    has_graphics = 1
+    num_rings[RING_GFX] = 1
+    num_rings[RING_DMA] = 2
+    num_rings[RING_COMPUTE] = 4
+    num_rings[RING_UVD] = 1
+    num_rings[RING_VCE] = 1
+    num_rings[RING_UVD_ENC] = 1
+    num_rings[RING_VCN_DEC] = 0
+    num_rings[RING_VCN_ENC] = 0
+    num_rings[RING_VCN_JPEG] = 0
+    has_clear_state = 1
+    has_distributed_tess = 1
+    has_dcc_constant_encode = 0
+    has_rbplus = 0
+    rbplus_allowed = 0
+    has_load_ctx_reg_pkt = 1
+    has_out_of_order_rast = 1
+    cpdma_prefetch_writes_memory = 1
+    has_gfx9_scissor_bug = 0
+    has_tc_compat_zrange_bug = 1
+    has_msaa_sample_loc_bug = 1
+    has_ls_vgpr_init_bug = 0
+    has_32bit_predication = 0
+    has_3d_cube_border_color_mipmap = 1
+Display features:
+    use_display_dcc_unaligned = 0
+    use_display_dcc_with_retile_blit = 0
+Memory info:
+    pte_fragment_size = 2097152
+    gart_page_size = 4096
+    gart_size = 4096 MB
+    vram_size = 4096 MB
+    vram_vis_size = 4096 MB
+    vram_type = 5
+    vram_bit_width = 128
+    gds_size = 64 kB
+    gds_gfx_partition_size = 0 kB
+    max_alloc_size = 3277 MB
+    min_alloc_size = 256
+    address32_hi = 0
+    has_dedicated_vram = 1
+    all_vram_visible = 1
+    smart_access_memory = 0
+    max_tcc_blocks = 4
+    num_tcc_blocks = 4
+    tcc_cache_line_size = 64
+    tcc_rb_non_coherent = 0
+    pc_lines = 0
+    lds_size_per_workgroup = 65536
+    lds_alloc_granularity = 512
+    lds_encode_granularity = 512
+    max_memory_clock = 1750
+    ce_ram_size = 32768
+    l1_cache_size = 16384
+    l2_cache_size = 1048576
+CP info:
+    gfx_ib_pad_with_type2 = 0
+    ib_alignment = 1024
+    me_fw_version = 167
+    me_fw_feature = 49
+    pfp_fw_version = 254
+    pfp_fw_feature = 49
+    ce_fw_version = 140
+    ce_fw_feature = 49
+Multimedia info:
+    has_hw_decode = 1
+    uvd_enc_supported = 1
+    uvd_fw_version = 25300992
+    vce_fw_version = 890897152
+    vce_harvest_config = 2
+Kernel & winsys capabilities:
+    drm = 3.40.0
+    has_userptr = 1
+    has_syncobj = 1
+    has_syncobj_wait_for_submit = 1
+    has_timeline_syncobj = 1
+    has_fence_to_handle = 1
+    has_ctx_priority = 1
+    has_local_buffers = 0
+    kernel_flushes_hdp_before_ib = 1
+    htile_cmask_support_1d_tiling = 1
+    si_TA_CS_BC_BASE_ADDR_allowed = 1
+    has_bo_metadata = 1
+    has_gpu_reset_status_query = 1
+    has_eqaa_surface_allocator = 1
+    has_format_bc1_through_bc7 = 1
+    kernel_flushes_tc_l2_after_ib = 1
+    has_indirect_compute_dispatch = 1
+    has_unaligned_shader_loads = 1
+    has_sparse_vm_mappings = 1
+    has_2d_tiling = 1
+    has_read_registers_query = 1
+    has_gds_ordered_append = 1
+    has_scheduled_fence_dependency = 1
+    mid_command_buffer_preemption_enabled = 0
+    has_tmz_support = 0
+Shader core info:
+    max_shader_clock = 1196
+    num_good_compute_units = 16
+    max_good_cu_per_sa = 8
+    min_good_cu_per_sa = 8
+    max_se = 2
+    num_se = 2
+    max_sa_per_se = 1
+    max_wave64_per_simd = 8
+    num_physical_sgprs_per_simd = 800
+    num_physical_wave64_vgprs_per_simd = 256
+    num_simd_per_compute_unit = 4
+    min_sgpr_alloc = 16
+    max_sgpr_alloc = 104
+    sgpr_alloc_granularity = 16
+    min_wave64_vgpr_alloc = 4
+    max_vgpr_alloc = 256
+    wave64_vgpr_alloc_granularity = 4
+    use_late_alloc = 1
+Render backend info:
+    pa_sc_tile_steering_override = 0x0
+    max_render_backends = 4
+    num_tile_pipes = 4
+    pipe_interleave_bytes = 256
+    enabled_rb_mask = 0xf
+    max_alignment = 262144
+    pbb_max_alloc_count = 0
+GB_ADDR_CONFIG: 0x22011002
+    num_pipes = 4
+    pipe_interleave_size = 256
+    bank_interleave_size = 1
+    num_shader_engines = 2
+    shader_engine_tile_size = 32
+    num_gpus = 0 (raw)
+    multi_gpu_tile_size = 2 (raw)
+    row_size = 4096
+    num_lower_pipes = 0 (raw)
+display: :0  screen: 0
+direct rendering: Yes
+Extended renderer info (GLX_MESA_query_renderer):
+    Vendor: AMD (0x1002)
+    Device: Radeon RX 560 Series (POLARIS11, DRM 3.40.0, 5.11.7.coela1, LLVM 11.0.1) (0x67ff)
+    Version: 21.1.0
+    Accelerated: yes
+    Video memory: 4096MB
+    Unified memory: no
+    Preferred profile: core (0x1)
+    Max core profile version: 4.6
+    Max compat profile version: 4.6
+    Max GLES1 profile version: 1.1
+    Max GLES[23] profile version: 3.2
+Memory info (GL_ATI_meminfo):
+    VBO free memory - total: 3668 MB, largest block: 3668 MB
+    VBO free aux. memory - total: 4021 MB, largest block: 4021 MB
+    Texture free memory - total: 3668 MB, largest block: 3668 MB
+    Texture free aux. memory - total: 4021 MB, largest block: 4021 MB
+    Renderbuffer free memory - total: 3668 MB, largest block: 3668 MB
+    Renderbuffer free aux. memory - total: 4021 MB, largest block: 4021 MB
+Memory info (GL_NVX_gpu_memory_info):
+    Dedicated video memory: 4096 MB
+    Total available memory: 8192 MB
+    Currently available dedicated video memory: 3668 MB
+OpenGL vendor string: AMD
+OpenGL renderer string: Radeon RX 560 Series (POLARIS11, DRM 3.40.0, 5.11.7.coela1, LLVM 11.0.1)
+OpenGL core profile version string: 4.6 (Core Profile) Mesa 21.1.0-devel (git-23100f3b65)
+OpenGL core profile shading language version string: 4.60
+OpenGL core profile context flags: (none)
+OpenGL core profile profile mask: core profile
+
+OpenGL version string: 4.6 (Compatibility Profile) Mesa 21.1.0-devel (git-23100f3b65)
+OpenGL shading language version string: 4.60
+OpenGL context flags: (none)
+OpenGL profile mask: compatibility profile
+
+OpenGL ES profile version string: OpenGL ES 3.2 Mesa 21.1.0-devel (git-23100f3b65)
+OpenGL ES profile shading language version string: OpenGL ES GLSL ES 3.20
+
