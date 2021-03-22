@@ -9,17 +9,19 @@ PCIBUS="/sys/bus/pci/devices/$(echo ${GPUINFO} | grep "pci (domain:bus:dev.func)
 MESA_DRIVER_VER="$(echo ${GPUINFO} | grep "OpenGL core profile version" | sed -e "s/^.*Core\ Profile)\ //g")"
 
 _repeat_printf () {
+  OUT=""
   i=0
   while [ "${i}" -lt "${2}" ]; do
-    printf -- "${1}"
+    OUT="${OUT}${1}"
     i=$(( ${i} + 1 ))
   done
+    printf -- "${OUT}"
 }
 
 _arg_judge () {
-  NUM="$(echo ${1} | grep -c "[^0-9]")"
+  NUM="$(echo ${1#*=} | grep -c "[^0-9]")"
   if [ "${NUM}" -gt 0 ]; then
-    printf -- "\n  Error option: ${2}\n"
+    printf -- "\n  Error option: ${1}\n"
     _option_help
     exit 1
   fi
@@ -134,56 +136,57 @@ for opt in ${@}; do
     DEBUG_SPEC="1"
     _debug_spec_func ;;
   "--col="*)
-    _arg_judge ${opt#--col=} ${opt}
+    _arg_judge ${opt}
     COL="${opt#--col=}" ;;
   "-ni"|"-noinfo")
     NO_INFO="1" ;;
   "-nd"|"-nodia")
     NO_DIAGRAM="1" ;;
-  "-nogfx")
+  "-nogfx"|"-ng")
     HAS_GFX="0" ;;
   "--arch="*)
-    if [ "${opt#--arch=}" = "gfx9" ]; then
-      GPU_ASIC="VEGA10 pseudo"
-      CHIP_CLASS="11"
-    elif [ "${opt#--arch=}" = "gfx10" ]; then
-      GPU_ASIC="NAVI10 pseudo"
-      CHIP_CLASS="12"
-    elif [ "${opt#--arch=}" = "gfx10.3" ]; then
-      GPU_ASIC="SIENNA_CICHLID pseudo"
-      CHIP_CLASS="13"
-      RB_PLUS="1"
-    else
-      printf -- "\n Error: ${opt}\n"
-      exit 1
-    fi
+    case "${opt#*=}" in
+      "gfx9")
+        GPU_ASIC="VEGA10 pseudo"
+        CHIP_CLASS="11" ;;
+      "gfx10")
+        GPU_ASIC="NAVI10 pseudo"
+        CHIP_CLASS="12" ;;
+      "gfx10.3")
+        GPU_ASIC="SIENNA_CICHLID pseudo"
+        CHIP_CLASS="13"
+        RB_PLUS="1"     ;;
+      *)
+        printf -- "\n Error: ${opt}\n"
+        exit 1 ;;
+    esac
       NUM_L2_CACHE_BLOCK="16"
       L2_CACHE="$(( 4096 * 1024 ))"
     ;;
   "--se="*)
-    _arg_judge ${opt#--se=} ${opt}
-    MAX_SE="${opt#--se=}" ;;
-  "--sa-per-se="*)
-    _arg_judge ${opt#--sa-per-se=} ${opt}
-    SA_PER_SE="${opt#--sa-per-se=}" ;;
+    _arg_judge ${opt}
+    MAX_SE="${opt#*=}" ;;
+  "--sa-per-se="*|"--sps="*)
+    _arg_judge ${opt}
+    SA_PER_SE="${opt#*=}" ;;
   "--cu-per-sa="*)
-    _arg_judge ${opt#--cu-per-sa=} ${opt}
-    CU_PER_SA="${opt#--cu-per-sa=}" 
-    MIN_CU_PER_SA="${opt#--cu-per-sa=}" ;;
+    _arg_judge ${opt}
+    CU_PER_SA="${opt#*=}"
+    MIN_CU_PER_SA="${opt#*=}" ;;
   "--min-cu-per-sa="*)
-    _arg_judge ${opt#--min-cu-per-sa=} ${opt}
-    MIN_CU_PER_SA="${opt#--min-cu-per-sa=}" ;;
+    _arg_judge ${opt}
+    MIN_CU_PER_SA="${opt#*=}" ;;
   "--rb="*)
-    _arg_judge ${opt#--rb=} ${opt}
-    NUM_RB="${opt#--rb=}" ;;
+    _arg_judge ${opt}
+    NUM_RB="${opt#*=}" ;;
   "-rbplus")
     RB_PLUS="1" ;;
   "--l2c-block="*|"--l2cb="*)
-    _arg_judge ${opt#--l2c-block=} ${opt}
-    NUM_L2_CACHE_BLOCK="${opt#--l2c-block=}" ;;
+    _arg_judge ${opt}
+    NUM_L2_CACHE_BLOCK="${opt#*=}" ;;
   "--l2c-size="*|"--l2cs="*)
-    _arg_judge ${opt#--l2c-size=} ${opt}
-    L2_CACHE="$(( ${opt#--l2c-size=} * 1024))" ;;
+    _arg_judge ${opt}
+    L2_CACHE="$(( ${opt#*=} * 1024))" ;;
   "-image")
     IMAGE=1 ;;
   "-h"|"--help")
