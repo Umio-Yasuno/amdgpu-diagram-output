@@ -55,21 +55,22 @@ printf -- "\nUsage:\n  $(basename ${0}) [FLAGS] [OPTION]...
 \nFLAGS:
   -ni, -noinfo\t\t\tdo not display spec list
   -nd, -nodia\t\t\tdo not display diagram
-  -nogfx\t\t\tdo not display gfx block (for diagram)
+  -ng, -nogfx\t\t\tdo not display gfx block (for diagram)
   \t\t\t\t  (RB, Rasterizer/Primitive, Geometry)
   -rbplus\t\t\tRB+ (for override)
-  \t\t\t\t  (RB = 4ROP, RB+ = 8ROP) 
+  \t\t\t\t  (RB == 4-ROP, RB+ == 8-ROP) 
   -h, --help\t\t\tdisplay this help and exit
 \nOPTIONS:
   --col=NUM\t\t\tsetting number of diagram column (default: 2)
   --arch=gfx(9|10|10.3)\t\toverride GFX IP/Architecture
   --se=NUM\t\t\toverride number of ShaderEngine
-  --sa-per-se=NUM\t\toverride number of ShaderArray per ShaderEngine
-  --cu-per-sa=NUM\t\toverride number of CU per ShaderArray
-  --min-cu-per-sa=NUM\t\toverride number of min CU per ShaderArray
+  --sa-per-se=NUM, --sps=NUM\toverride number of ShaderArray per ShaderEngine
+  --cu-per-sa=NUM, --cps=NUM\toverride number of CU per ShaderArray
+  --min-cu-per-sa=NUM, --mcps=NUM
+  \t\t\t\toverride number of min CU per ShaderArray
   --rb=NUM\t\t\toverride number of RenderBackend
-  --l2c-block=NUM\t\toverride number of L2cache block
-  --l2c-size=NUM\t\toverride L2cache size (KiB)
+  --l2c-block=NUM, --l2cb=NUM\toverride number of L2cache block
+  --l2c-size=NUM, --l2cs=NUM\toverride L2cache size (KiB)
   \n  -image\t\t\toutput image of diagram
   \t\t\t\t  output to: /tmp/<GPU_NAME>-diagram.png
   \t\t\t\t  requirement: imagemagick, \"Dejavu Sans Mono\" font
@@ -144,7 +145,7 @@ for opt in ${@}; do
     NO_INFO="1" ;;
   "-nd"|"-nodia")
     NO_DIAGRAM="1" ;;
-  "-nogfx"|"-ng")
+  "-ng"|"-nogfx")
     HAS_GFX="0" ;;
   "--arch="*)
     case "${opt#*=}" in
@@ -175,7 +176,7 @@ for opt in ${@}; do
     _arg_judge ${opt}
     CU_PER_SA="${opt#*=}"
     MIN_CU_PER_SA="${opt#*=}" ;;
-  "--min-cu-per-sa="*)
+  "--min-cu-per-sa="*|"--mcps"*)
     _arg_judge ${opt}
     MIN_CU_PER_SA="${opt#*=}" ;;
   "--rb="*)

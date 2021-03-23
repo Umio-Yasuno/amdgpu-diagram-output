@@ -14,25 +14,27 @@ Usage:
 FLAGS:
   -ni, -noinfo			do not display spec list
   -nd, -nodia			do not display diagram
-  -nogfx			do not display gfx block
+  -ng, -nogfx			do not display gfx block (for diagram)
   				  (RB, Rasterizer/Primitive, Geometry)
-  -rbplus			RB+ enable (for override) (RB = 4ROP, RB+ = 8ROP)
+  -rbplus			RB+ (for override)
+  				  (RB == 4-ROP, RB+ == 8-ROP) 
   -h, --help			display this help and exit
 
 OPTIONS:
   --col=NUM			setting number of diagram column (default: 2)
   --arch=gfx(9|10|10.3)		override GFX IP/Architecture
   --se=NUM			override number of ShaderEngine
-  --sa-per-se=NUM		override number of ShaderArray per ShaderEngine
-  --cu-per-sa=NUM		override number of CU per ShaderArray
-  --min-cu-per-sa=NUM		override number of min CU per ShaderArray
+  --sa-per-se=NUM, --sps=NUM	override number of ShaderArray per ShaderEngine
+  --cu-per-sa=NUM, --cps=NUM	override number of CU per ShaderArray
+  --min-cu-per-sa=NUM, --mcps=NUM
+  				override number of min CU per ShaderArray
   --rb=NUM			override number of RenderBackend
-  --l2c-block=NUM		override number of L2cache block
-  --l2c-cache=NUM		override L2cache size (MB)
-
+  --l2c-block=NUM, --l2cb=NUM	override number of L2cache block
+  --l2c-size=NUM, --l2cs=NUM	override L2cache size (KiB)
+  
   -image			output image of diagram
-  				      output to: /tmp/<GPU_NAME>-diagram.png
-  				      requirement: imagemagick, "Dejavu Sans Mono" font
+  				  output to: /tmp/<GPU_NAME>-diagram.png
+  				  requirement: imagemagick, "Dejavu Sans Mono" font
 
 ```
 
@@ -40,12 +42,13 @@ OPTIONS:
 
 ```
 
-Driver Version:		Mesa 21.0.0-devel (git-3898f747ce)
+Driver Version:		Mesa 21.1.0-devel (git-23100f3b65)
 
 GPU ASIC:		POLARIS11
 Chip class:		GFX8
 Marketing Name:		Radeon RX 560 Series
 GPU Type:		Discrete GPU
+DeviceID:		0x67ff:0xcf
 
 Compute Units:		  16 CU
 GFX Clock Range:	 214 MHz - 1080 MHz
@@ -71,7 +74,7 @@ L2 Cache Size:		  1 MB (1024 KB)
 
 Power cap:		 48 W
 
-Card Interface:		PCIe Gen3 x8 
+Card Interface:		PCIe Gen3x8 
 
 AMD Smart Access Memory
 
@@ -93,6 +96,7 @@ AMD Smart Access Memory
  | +--------------------------------+ |  | +--------------------------------+ | 
  |      [- Geometry Processor -]      |  |      [- Geometry Processor -]      | 
  +------------------------------------+  +------------------------------------+ 
-        [L2$ 256K]        [L2$ 256K]        [L2$ 256K]        [L2$ 256K]
+
+    [L2$ 256K]    [L2$ 256K]    [L2$ 256K]    [L2$ 256K]
 
 ```
