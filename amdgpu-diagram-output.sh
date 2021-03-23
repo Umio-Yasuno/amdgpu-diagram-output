@@ -362,18 +362,19 @@ L2 Cache Size:\t\t%3d MB (%d KB)
 POWER_CAP="$(( $(cat ${PCIBUS}/hwmon/hwmon0/power1_cap) / 1000 / 1000 ))"
 printf -- "Power cap:\t\t%3d W\n\n" ${POWER_CAP}
 
-PCIE_SPEED="$(tail -n1 ${PCIBUS}/pp_dpm_pcie | sed -E "s/([0-9]:\ |GT\/s.*$)//g")"
-PCIE_WIDTH="$(tail -n1 ${PCIBUS}/pp_dpm_pcie | sed -E "s/(^.*,\ |\ \*$)//g")"
+PCIE_SPEED="$(cat ${PCIBUS}/max_link_speed | sed -e "s/\ GT\/s.*$//g")"
+PCIE_WIDTH="$(cat ${PCIBUS}/max_link_width)"
 
 case "${PCIE_SPEED}" in
   "2.5")    PCIE_GEN="1" ;;
   "5.0")    PCIE_GEN="2" ;;
   "8.0")    PCIE_GEN="3" ;;
   "16.0")   PCIE_GEN="4" ;;
+  *)        PCIE_GEN="0" ;;
 esac
 
 printf -- "\
-Card Interface:\t\tPCIe Gen%1d %-3s
+Card Interface:\t\tPCIe Gen%1dx%-2d
 \n" \
 "${PCIE_GEN}" "${PCIE_WIDTH}"
 
